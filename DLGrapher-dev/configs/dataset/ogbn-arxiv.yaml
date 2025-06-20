@@ -1,0 +1,4 @@
+name: ogbn-arxiv
+datadir: 'data/ogbn-arxiv/'
+tgt_col: 'is_cv_lg_it_cl'
+seed: 1234

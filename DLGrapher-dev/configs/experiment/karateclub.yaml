@@ -1,0 +1,18 @@
+# @package _global_
+general:
+    name : 'karateclub'
+    gpus : 1
+    wandb: 'disabled'
+    test_only: null
+    evaluate_all_checkpoints: False
+    sample_every_val: 8
+    samples_to_generate: 256
+    final_model_samples_to_generate: 1000
+    final_model_samples_to_save: 1000
+train:
+    n_epochs: 1000
+    batch_size: 256
+    save_model: True
+model:
+    n_layers: 9
+    lambda_train: [5, 0]

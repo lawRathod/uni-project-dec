@@ -5,3 +5,7 @@
 
 # Ignore zip archives
 *.zip
+
+# data
+generated_samples
+raw_data
