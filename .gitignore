@@ -10,3 +10,4 @@
 generated_samples
 raw_data
 venv
+.env
