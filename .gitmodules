@@ -1,0 +1,3 @@
+[submodule "rebMIGraph"]
+	path = rebMIGraph
+	url = git@github.com:iyempissy/rebMIGraph.git
