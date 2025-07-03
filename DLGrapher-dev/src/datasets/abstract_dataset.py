@@ -1,6 +1,6 @@
 from typing import Iterable
 
-import nets_eval_common
+# import nets_eval_common
 import torch
 from torch_geometric.data import Data, Dataset
 from torch_geometric.data.lightning import LightningDataset
@@ -237,16 +237,17 @@ class AbstractTableGraphDataset(InMemoryDataset):
                     low=self.min_nodes, high=cast(int, self.max_nodes),
                     size=self.num_graphs, endpoint=True)
             ]
-        elif self.sampler == "neighborhood":
-            samples_nx = nets_eval_common.NeighborhoodSampler(
-                n_hops=2,
-                min_nodes_abs=self.min_nodes,
-                max_nodes_abs=self.max_nodes)._sample_single(g_nx)
+        # because no access to nets_eval_common
+        # elif self.sampler == "neighborhood":
+        #     samples_nx = nets_eval_common.NeighborhoodSampler(
+        #         n_hops=2,
+        #         min_nodes_abs=self.min_nodes,
+        #         max_nodes_abs=self.max_nodes)._sample_single(g_nx)
 
-            if self.num_graphs != -1:
-                samples_nx = samples_nx[:self.num_graphs]
-            else:
-                self.num_graphs = len(samples_nx)
+        #     if self.num_graphs != -1:
+        #         samples_nx = samples_nx[:self.num_graphs]
+        #     else:
+        #         self.num_graphs = len(samples_nx)
         else:
             raise ValueError("Unknown sampler")
 

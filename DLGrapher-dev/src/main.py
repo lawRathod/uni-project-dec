@@ -8,7 +8,8 @@ import pathlib
 import warnings
 from typing import cast
 
-import nets_eval_common
+# because no access to nets_eval_common
+# import nets_eval_common
 import torch
 torch.cuda.empty_cache()
 import torch._dynamo.config as dynamo_config
@@ -214,45 +215,46 @@ def main(cfg: DictConfig):
                         'sampling_metrics': sampling_metrics, 'visualization_tools': visualization_tools,
                         'extra_features': extra_features, 'domain_features': domain_features}
 
-    elif dataset_config["name"] in nets_eval_common.dataset_names():
-        from datasets.net_dataset import NetDataModule, NetDatasetInfos
-        from analysis.net_utils import NetSamplingMetrics
-        # from pytorch_lightning import seed_everything
+    # because no access to nets_eval_common
+    # elif dataset_config["name"] in nets_eval_common.dataset_names():
+    #     from datasets.net_dataset import NetDataModule, NetDatasetInfos
+    #     from analysis.net_utils import NetSamplingMetrics
+    #     # from pytorch_lightning import seed_everything
 
-        # seed_everything(0)
-        datamodule = NetDataModule(cfg, None)
-        sampling_metrics = NetSamplingMetrics(datamodule)
+    #     # seed_everything(0)
+    #     datamodule = NetDataModule(cfg, None)
+    #     sampling_metrics = NetSamplingMetrics(datamodule)
 
-        dataset_infos = NetDatasetInfos(datamodule)
-        train_metrics = TrainAbstractMetrics()
-        visualization_tools = None
+    #     dataset_infos = NetDatasetInfos(datamodule)
+    #     train_metrics = TrainAbstractMetrics()
+    #     visualization_tools = None
 
-        if cfg.general.compress is None:
-            compress = None
-        elif cfg.general.compress == 'struct':
-            compress = StructCompress()
-        else:
-            raise ValueError("The specified compression type is invalid for unattributed data.")
+    #     if cfg.general.compress is None:
+    #         compress = None
+    #     elif cfg.general.compress == 'struct':
+    #         compress = StructCompress()
+    #     else:
+    #         raise ValueError("The specified compression type is invalid for unattributed data.")
 
-        if compress:
-            compress.prepare(datamodule)
-            datamodule = NetDataModule(cfg, compress)
-            sampling_metrics = NetSamplingMetrics(datamodule)
-            dataset_infos = NetDatasetInfos(datamodule)
+    #     if compress:
+    #         compress.prepare(datamodule)
+    #         datamodule = NetDataModule(cfg, compress)
+    #         sampling_metrics = NetSamplingMetrics(datamodule)
+    #         dataset_infos = NetDatasetInfos(datamodule)
 
-        if cfg.model.type != 'continuous' and cfg.model.extra_features is not None:
-            extra_features = ExtraFeatures(cfg.model.extra_features, dataset_info=dataset_infos)
-        else:
-            extra_features = DummyExtraFeatures()
-        domain_features = DummyExtraFeatures()
+    #     if cfg.model.type != 'continuous' and cfg.model.extra_features is not None:
+    #         extra_features = ExtraFeatures(cfg.model.extra_features, dataset_info=dataset_infos)
+    #     else:
+    #         extra_features = DummyExtraFeatures()
+    #     domain_features = DummyExtraFeatures()
 
-        dataset_infos.compute_input_output_dims(datamodule=datamodule, extra_features=extra_features,
-                                                domain_features=domain_features)
+    #     dataset_infos.compute_input_output_dims(datamodule=datamodule, extra_features=extra_features,
+    #                                             domain_features=domain_features)
 
-        model_kwargs = {'dataset_infos': dataset_infos, 'train_metrics': train_metrics,
-                        'sampling_metrics': sampling_metrics, 'visualization_tools': visualization_tools,
-                        'extra_features': extra_features, 'domain_features': domain_features,
-                        'compress': compress}
+    #     model_kwargs = {'dataset_infos': dataset_infos, 'train_metrics': train_metrics,
+    #                     'sampling_metrics': sampling_metrics, 'visualization_tools': visualization_tools,
+    #                     'extra_features': extra_features, 'domain_features': domain_features,
+    #                     'compress': compress}
 
     elif dataset_config["name"] == "karateclub":
         from analysis.karateclub_utils import KarateClubSamplingMetrics
