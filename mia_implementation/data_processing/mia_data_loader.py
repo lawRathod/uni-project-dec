@@ -12,11 +12,14 @@ sys.path.append(str(Path(__file__).parent))
 
 from bridge import load_dataset_for_attack, create_mock_dataset_for_rebmi
 import torch
-from torch_geometric.data import Data
+from torch_geometric.data import Data, Batch
 
 class MIADataLoader:
     """
-    Data loader for MIA attack that provides separate data sources for target and shadow models
+    Data loader for realistic MIA attack with separate data sources:
+    - Target model: trains on REAL training data 
+    - Shadow model: trains on SYNTHETIC data
+    - Attack test: evaluates on REAL non-training data
     """
     
     def __init__(self, dataset_name):
@@ -24,9 +27,9 @@ class MIADataLoader:
         Initialize with dataset name ('twitch' or 'event')
         """
         self.dataset_name = dataset_name
-        self.target_data = None
-        self.shadow_data = None
-        self.test_data = None
+        self.target_data = None      # Real training subgraphs
+        self.shadow_data = None      # Synthetic subgraphs  
+        self.test_data = None        # Real non-training subgraphs
         
         # Load all data types
         self._load_all_data()
@@ -144,9 +147,69 @@ class MIADataLoader:
             'test_data': self.test_data
         }
 
+def get_realistic_attack_data(dataset_name):
+    """
+    Get realistic MIA attack data with separate sources for target/shadow/test
+    
+    Returns:
+        - attack_data: Dictionary with separate data for realistic attack
+    """
+    loader = MIADataLoader(dataset_name)
+    
+    return {
+        'target_train_subgraphs': loader.target_data,    # Real training data for target model
+        'shadow_train_subgraphs': loader.shadow_data,    # Synthetic data for shadow model  
+        'attack_test_subgraphs': loader.test_data,       # Real non-training data for testing attack
+        'dataset_info': {
+            'name': dataset_name,
+            'num_classes': 2,  # Both datasets have binary classification
+            'num_features': 7 if dataset_name == 'twitch' else 4,
+            'classification_target': 'mature' if dataset_name == 'twitch' else 'gender'
+        }
+    }
+
+def create_subgraph_iterator(subgraph_list, batch_size=1):
+    """
+    Create iterator for training on multiple subgraphs
+    
+    Args:
+        subgraph_list: List of torch_geometric.Data objects
+        batch_size: Number of subgraphs to process at once
+    
+    Yields:
+        Batches of subgraphs for training
+    """
+    if not subgraph_list:
+        return
+        
+    for i in range(0, len(subgraph_list), batch_size):
+        batch = subgraph_list[i:i + batch_size]
+        yield batch
+
+def combine_subgraph_batch(subgraph_batch):
+    """
+    Combine a batch of subgraphs into a single graph for training using PyG Batch
+    
+    Args:
+        subgraph_batch: List of torch_geometric.Data objects
+    
+    Returns:
+        Combined torch_geometric.Data object
+    """
+    if len(subgraph_batch) == 1:
+        return subgraph_batch[0]
+    
+    # Use PyTorch Geometric's Batch to properly combine subgraphs
+    # This handles edge index adjustments automatically
+    batch = Batch.from_data_list(subgraph_batch)
+    
+    # Convert batch back to single Data object
+    # Note: This creates a disconnected graph (multiple components)
+    return Data(x=batch.x, edge_index=batch.edge_index, y=batch.y, batch=batch.batch)
+
 def setup_data_for_rebmi(dataset_name):
     """
-    Setup data for rebMIGraph integration
+    Setup data for rebMIGraph integration (legacy compatibility)
     
     Returns:
         - mock_dataset: Dataset object compatible with rebMIGraph

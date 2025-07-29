@@ -4,7 +4,8 @@ import pandas as pd
 import networkx as nx
 import torch
 from torch_geometric.data import Data
-from sklearn.preprocessing import LabelEncoder
+from torch_geometric.utils import from_networkx
+from sklearn.preprocessing import LabelEncoder, StandardScaler
 import numpy as np
 
 def load_dataset(file_path):
@@ -24,7 +25,7 @@ def load_dataset(file_path):
 
 def preprocess_features(df, dataset_name):
     """
-    Preprocess features for torch_geometric conversion
+    Preprocess features for torch_geometric conversion with proper normalization
     """
     df_processed = df.copy()
     
@@ -34,7 +35,7 @@ def preprocess_features(df, dataset_name):
         df_processed['dead_account'] = df_processed['dead_account'].astype(int)
         df_processed['affiliate'] = df_processed['affiliate'].astype(int)
         
-        # Convert datetime to timestamp
+        # Convert datetime to timestamp and normalize
         df_processed['created_at'] = pd.to_datetime(df_processed['created_at']).astype(np.int64) // 10**9
         df_processed['updated_at'] = pd.to_datetime(df_processed['updated_at']).astype(np.int64) // 10**9
         
@@ -42,8 +43,8 @@ def preprocess_features(df, dataset_name):
         le = LabelEncoder()
         df_processed['language'] = le.fit_transform(df_processed['language'])
         
-        # Normalize large features
-        df_processed['views'] = np.log1p(df_processed['views'])  # Log transform views
+        # Log transform views to handle large values
+        df_processed['views'] = np.log1p(df_processed['views'])
         
     elif dataset_name == "event":
         # Encode categorical columns
@@ -54,10 +55,16 @@ def preprocess_features(df, dataset_name):
         
         # Convert datetime to timestamp
         df_processed['joinedAt'] = pd.to_datetime(df_processed['joinedAt']).astype(np.int64) // 10**9
-        
-        # Normalize features
-        df_processed['birthyear'] = (df_processed['birthyear'] - df_processed['birthyear'].mean()) / df_processed['birthyear'].std()
-        df_processed['timezone'] = (df_processed['timezone'] - df_processed['timezone'].mean()) / df_processed['timezone'].std()
+    
+    # Apply standard normalization to all numeric features (except target)
+    classification_target = 'mature' if dataset_name == 'twitch' else 'gender'
+    feature_cols = [col for col in df_processed.columns if col != classification_target]
+    
+    # Only normalize numeric columns
+    numeric_cols = df_processed[feature_cols].select_dtypes(include=[np.number]).columns
+    if len(numeric_cols) > 0:
+        scaler = StandardScaler()
+        df_processed[numeric_cols] = scaler.fit_transform(df_processed[numeric_cols])
     
     return df_processed
 
@@ -68,23 +75,35 @@ def convert_to_torch_geometric(df, graph, dataset_name, classification_target):
     # Preprocess features
     df_processed = preprocess_features(df, dataset_name)
     
-    # Extract node features (exclude the classification target)
+    # Add node features and labels to NetworkX graph as node attributes
+    for node in graph.nodes():
+        if node in df_processed.index:
+            # Add features (exclude classification target)
+            feature_cols = [col for col in df_processed.columns if col != classification_target]
+            for col in feature_cols:
+                graph.nodes[node][col] = float(df_processed.loc[node, col])
+            
+            # Add label
+            graph.nodes[node]['y'] = int(df_processed.loc[node, classification_target])
+    
+    # Convert using PyTorch Geometric's from_networkx function
+    data = from_networkx(graph)
+    
+    # Extract feature matrix from node attributes
     feature_cols = [col for col in df_processed.columns if col != classification_target]
-    x = torch.tensor(df_processed[feature_cols].values, dtype=torch.float)
     
-    # Extract labels
-    y = torch.tensor(df_processed[classification_target].values, dtype=torch.long)
+    # Build feature matrix manually to ensure correct order
+    node_features = []
+    node_labels = []
+    for node in sorted(graph.nodes()):
+        if node in df_processed.index:
+            features = [graph.nodes[node][col] for col in feature_cols]
+            node_features.append(features)
+            node_labels.append(graph.nodes[node]['y'])
     
-    # Convert NetworkX edges to torch format
-    edge_list = list(graph.edges())
-    if len(edge_list) == 0:
-        # Handle empty graphs
-        edge_index = torch.empty((2, 0), dtype=torch.long)
-    else:
-        edge_index = torch.tensor(edge_list, dtype=torch.long).t().contiguous()
-    
-    # Create torch_geometric Data object
-    data = Data(x=x, edge_index=edge_index, y=y)
+    # Override with properly ordered tensors
+    data.x = torch.tensor(node_features, dtype=torch.float)
+    data.y = torch.tensor(node_labels, dtype=torch.long)
     
     return data
 

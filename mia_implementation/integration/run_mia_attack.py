@@ -16,6 +16,7 @@ import random
 current_dir = Path(__file__).parent
 sys.path.append(str(current_dir))
 sys.path.append(str(current_dir / "rebMIGraph"))
+sys.path.append(str(current_dir.parent / "data_processing"))
 
 from mia_data_loader import setup_data_for_rebmi
 
@@ -138,7 +139,7 @@ from pathlib import Path
 
 # Add our data loader to path
 sys.path.append(str(Path(__file__).parent.parent))
-from mia_data_loader import setup_data_for_rebmi
+from data_processing import setup_data_for_rebmi
 
 # Setup our custom data
 dataset_name = "{dataset_name}"

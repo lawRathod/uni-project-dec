@@ -12,3 +12,8 @@ raw_data
 venv
 .env
 __pycache__
+.DS_Store
+
+# Ignore specific files
+!rebMIGraph/TSTS.py
+rebMIGraph/**
