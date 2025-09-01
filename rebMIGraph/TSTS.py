@@ -70,7 +70,7 @@ for which_run in range(1, num_of_runs):
     
     # =========================== MODEL AND DATA CONFIGURATION ===========================
     model_type = "GCN"  # GCN, GAT, SAGE, SGC
-    data_type = "Custom_Event"  # CiteSeer, Cora, PubMed, Flickr, Reddit, Custom_Twitch, Custom_Event
+    data_type = "Custom_Twitch"  # CiteSeer, Cora, PubMed, Flickr, Reddit, Custom_Twitch, Custom_Event
     mode = "TSTS"  # train on subgraph, test on subgraph
     
     # =========================== DATASET SPLIT SIZES ===========================
@@ -299,11 +299,13 @@ for which_run in range(1, num_of_runs):
                 self.convs = torch.nn.ModuleList()
                 self.convs.append(SAGEConv(dataset.num_node_features, 256))
                 self.convs.append(SAGEConv(256, dataset.num_classes))
+                self.dropout = 0.5
 
             elif model_type == "SGC":
                 # SGC
                 self.conv1 = SGConv(dataset.num_node_features, 256, K=2, cached=False)
                 self.conv2 = SGConv(256, dataset.num_classes, K=2, cached=False)
+                self.dropout = 0.5
 
             elif model_type == "GAT":
                 # GAT
@@ -314,6 +316,8 @@ for which_run in range(1, num_of_runs):
                     # self.conv2 = GATConv(8 * 8, dataset.num_classes, heads=8, concat=False, dropout=0.1)
                 else:
                     self.conv2 = GATConv(8 * 8, dataset.num_classes, heads=1, concat=False)
+                self.conv3 = None
+                self.dropout = GAT_DROPOUT
             else:
                 print("Error: No model selected")
 
@@ -433,11 +437,13 @@ for which_run in range(1, num_of_runs):
                 self.convs = torch.nn.ModuleList()
                 self.convs.append(SAGEConv(dataset.num_node_features, 256))
                 self.convs.append(SAGEConv(256, dataset.num_classes))
+                self.dropout = 0.5
 
             elif model_type == "SGC":
                 # SGC
                 self.conv1 = SGConv(dataset.num_node_features, 256, K=2, cached=False)
                 self.conv2 = SGConv(256, dataset.num_classes, K=2, cached=False)
+                self.dropout = 0.5
 
             elif model_type == "GAT":
                 # GAT
@@ -448,6 +454,8 @@ for which_run in range(1, num_of_runs):
                     # self.conv2 = GATConv(8 * 8, dataset.num_classes, heads=8, concat=False, dropout=0.1)
                 else:
                     self.conv2 = GATConv(8 * 8, dataset.num_classes, heads=1, concat=False)
+                self.conv3 = None
+                self.dropout = GAT_DROPOUT
             else:
                 print("Error: No model selected")
 
