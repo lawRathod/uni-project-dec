@@ -61,8 +61,8 @@ def create_inductive_split_custom(dataset_name, normalize=True):
         raise ValueError(f"Failed to load {dataset_name} dataset")
     
     train_graphs = data['train']  # Real training subgraphs
-    nontrain_graphs = data['train']  # Real non-training subgraphs  
-    synth_graphs = data['train']  # Synthetic subgraphs
+    nontrain_graphs = data['nontrain']  # Use train data for all splits  
+    synth_graphs = data['synth']  # Use train data for all splits
     
     # Combine subgraphs into single tensors
     def combine_subgraphs(graph_list, label_prefix="combined"):
@@ -104,16 +104,41 @@ def create_inductive_split_custom(dataset_name, normalize=True):
     rebmi_data.shadow_x, rebmi_data.shadow_y, rebmi_data.shadow_edge_index, rebmi_data.shadow_train_mask = combine_subgraphs(shadow_train)
     rebmi_data.shadow_test_x, rebmi_data.shadow_test_y, rebmi_data.shadow_test_edge_index, rebmi_data.shadow_test_mask = combine_subgraphs(shadow_test)
     
-    # Normalize features if requested
-    if normalize:
-        # Compute mean and std from all target training data
-        if rebmi_data.target_x is not None:
+    # Feature engineering and normalization
+    if rebmi_data.target_x is not None:
+        # Fast lightweight feature engineering
+        def enhance_features_fast(x, edge_index, y=None):
+            """Add only node degree (fast) for better discriminative power"""
+            from torch_geometric.utils import degree
+            
+            # Only add node degrees - very fast O(edges)
+            degrees = degree(edge_index[0], x.shape[0]).unsqueeze(1).float()
+            
+            # Simple feature combination: original + degree + degree^2 (polynomial features)
+            deg_squared = (degrees / degrees.max()) ** 2  # Normalized squared degree
+            
+            enhanced_x = torch.cat([x, degrees, deg_squared], dim=1)
+            
+            return enhanced_x
+        
+        # Enhance all datasets (fast)
+        rebmi_data.target_x = enhance_features_fast(rebmi_data.target_x, rebmi_data.target_edge_index, rebmi_data.target_y)
+        if rebmi_data.target_test_x is not None:
+            rebmi_data.target_test_x = enhance_features_fast(rebmi_data.target_test_x, rebmi_data.target_test_edge_index, rebmi_data.target_test_y)
+        if rebmi_data.shadow_x is not None:
+            rebmi_data.shadow_x = enhance_features_fast(rebmi_data.shadow_x, rebmi_data.shadow_edge_index, rebmi_data.shadow_y)
+        if rebmi_data.shadow_test_x is not None:
+            rebmi_data.shadow_test_x = enhance_features_fast(rebmi_data.shadow_test_x, rebmi_data.shadow_test_edge_index, rebmi_data.shadow_test_y)
+        
+        # Use original dataset labels (no synthetic manipulation)
+        print("Using original dataset labels with enhanced features...")
+        
+        # Now normalize the enhanced features
+        if normalize:
             mean = rebmi_data.target_x.mean(dim=0, keepdim=True)
             std = rebmi_data.target_x.std(dim=0, keepdim=True)
-            # Avoid division by zero
             std = torch.where(std == 0, torch.ones_like(std), std)
             
-            # Normalize all datasets using the same statistics
             rebmi_data.target_x = (rebmi_data.target_x - mean) / std
             if rebmi_data.target_test_x is not None:
                 rebmi_data.target_test_x = (rebmi_data.target_test_x - mean) / std
@@ -129,8 +154,15 @@ def get_dataset_info(dataset_name):
     data = load_custom_dataset(dataset_name)
     if not data:
         return None, None
+    
+    # Create a dummy enhanced feature to get correct feature count
+    dummy_data = create_inductive_split_custom(dataset_name)
+    if dummy_data and dummy_data.target_x is not None:
+        enhanced_features = dummy_data.target_x.shape[1]
+    else:
+        enhanced_features = data['num_features']
         
-    return data['num_features'], data['num_classes']
+    return enhanced_features, data['num_classes']
 
 if __name__ == "__main__":
     # Test adapter

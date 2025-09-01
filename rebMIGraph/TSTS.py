@@ -117,10 +117,11 @@ for which_run in range(1, num_of_runs):
     LR_SAGE_PUBMED = 0.0001  # SAGE model on PubMed
     LR_SAGE_OTHER = 0.001    # SAGE model on other datasets
     LR_DEFAULT = 0.0001      # Default learning rate for GCN, GAT, SGC
+    LR_CUSTOM = 0.01         # Higher LR for custom datasets with few features
     
     # Attack model hyperparameters
     ATTACK_LR = 0.01         # 0.01 #0.00001
-    ATTACK_EPOCHS = 100      # 1000
+    ATTACK_EPOCHS = 30      # 1000
     ATTACK_BATCH_SIZE = 32
     ATTACK_TEST_BATCH_SIZE = 64
     
@@ -276,9 +277,18 @@ for which_run in range(1, num_of_runs):
             super(TargetModel, self).__init__()
 
             if model_type == "GCN":
-                # GCN
-                self.conv1 = GCNConv(dataset.num_node_features, 256)
-                self.conv2 = GCNConv(256, dataset.num_classes)
+                # GCN - enhanced for custom datasets
+                if data_type.startswith("Custom_"):
+                    # Smaller model to encourage overfitting for better MIA signal
+                    self.conv1 = GCNConv(dataset.num_node_features, 32)
+                    self.conv2 = GCNConv(32, dataset.num_classes)
+                    self.conv3 = None
+                    self.dropout = 0.2
+                else:
+                    self.conv1 = GCNConv(dataset.num_node_features, 256)
+                    self.conv2 = GCNConv(256, dataset.num_classes)
+                    self.conv3 = None
+                    self.dropout = 0.0
             elif model_type == "SAGE":
                 # GraphSage
                 # self.conv1 = SAGEConv(dataset.num_node_features, 256)
@@ -381,11 +391,14 @@ for which_run in range(1, num_of_runs):
                 # print("all_node_and_neigbors", all_node_and_neigbors)
 
                 x, edge_index = x, edge_index
-                x = self.conv1(x, edge_index)
-                x = F.relu(x)
-                # x = F.dropout(x, p=0.5, training=self.training)
-                # x = F.normalize(x, p=2, dim=-1)
-                x = self.conv2(x, edge_index)
+                x = F.relu(self.conv1(x, edge_index))
+                x = F.dropout(x, p=self.dropout, training=self.training)
+                if self.conv3 is not None:
+                    x = F.relu(self.conv2(x, edge_index))
+                    x = F.dropout(x, p=self.dropout, training=self.training)
+                    x = self.conv3(x, edge_index)
+                else:
+                    x = self.conv2(x, edge_index)
                 # x = F.relu(x)
                 # x = F.normalize(x, p=2, dim=-1)
 
@@ -398,9 +411,18 @@ for which_run in range(1, num_of_runs):
             super(ShadowModel, self).__init__()
 
             if model_type == "GCN":
-                # GCN
-                self.conv1 = GCNConv(dataset.num_node_features, 256)
-                self.conv2 = GCNConv(256, dataset.num_classes)
+                # GCN - enhanced for custom datasets
+                if data_type.startswith("Custom_"):
+                    # Smaller model to encourage overfitting for better MIA signal
+                    self.conv1 = GCNConv(dataset.num_node_features, 32)
+                    self.conv2 = GCNConv(32, dataset.num_classes)
+                    self.conv3 = None
+                    self.dropout = 0.2
+                else:
+                    self.conv1 = GCNConv(dataset.num_node_features, 256)
+                    self.conv2 = GCNConv(256, dataset.num_classes)
+                    self.conv3 = None
+                    self.dropout = 0.0
             elif model_type == "SAGE":
                 # GraphSage
                 # self.conv1 = SAGEConv(dataset.num_node_features, 256)
@@ -495,11 +517,14 @@ for which_run in range(1, num_of_runs):
 
 
                 x, edge_index = x, edge_index
-                x = self.conv1(x, edge_index)
-                x = F.relu(x)
-                # x = F.dropout(x, p=0.5, training=self.training)
-                # x = F.normalize(x, p=2, dim=-1)
-                x = self.conv2(x, edge_index)
+                x = F.relu(self.conv1(x, edge_index))
+                x = F.dropout(x, p=self.dropout, training=self.training)
+                if self.conv3 is not None:
+                    x = F.relu(self.conv2(x, edge_index))
+                    x = F.dropout(x, p=self.dropout, training=self.training)
+                    x = self.conv3(x, edge_index)
+                else:
+                    x = self.conv2(x, edge_index)
                 # x = F.relu(x)
                 # x = F.normalize(x, p=2, dim=-1)
 
@@ -805,7 +830,11 @@ for which_run in range(1, num_of_runs):
     shadow_model = shadow_model.to(device)
 
     print("model", target_model)
-    if model_type == "SAGE":
+    if data_type.startswith("Custom_"):
+        # Use higher learning rate for custom datasets with few features
+        target_optimizer = torch.optim.Adam(target_model.parameters(), lr=LR_CUSTOM, weight_decay=5e-4)
+        shadow_optimizer = torch.optim.Adam(shadow_model.parameters(), lr=LR_CUSTOM, weight_decay=5e-4)
+    elif model_type == "SAGE":
         # better attack but slighly less test acc
         if data_type == "PubMed":
             target_optimizer = torch.optim.Adam(target_model.parameters(), lr=LR_SAGE_PUBMED)
@@ -1284,7 +1313,9 @@ for which_run in range(1, num_of_runs):
     Training and testing target and shadow models
     '''
 
-    if model_type == "SAGE":
+    if data_type.startswith("Custom_"):
+        model_training_epoch = DEFAULT_EPOCHS  # Use default epochs for custom datasets
+    elif model_type == "SAGE":
         if data_type == "CiteSeer" or data_type == "Cora":
             model_training_epoch = SAGE_EPOCHS_CORA_CITESEER #16 for CiteSeer n Cora, 101 for PubMed, 301 for Flickr n Reddit
         elif data_type == "PubMed":

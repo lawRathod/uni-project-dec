@@ -97,6 +97,18 @@ if __name__ == "__main__":
     # Test loading
     for dataset in ['twitch', 'event']:
         print(f"\nTesting {dataset} dataset:")
+        loader = PickleDatasetLoader(dataset)
+        
+        # Load raw data to inspect columns
+        train_data = loader.load_pickle("train")
+        if train_data and isinstance(train_data, list) and len(train_data) > 0:
+            sample_df, sample_graph = train_data[0]
+            print(f"DataFrame columns: {list(sample_df.columns)}")
+            print(f"DataFrame dtypes:")
+            for col, dtype in sample_df.dtypes.items():
+                print(f"  {col}: {dtype}")
+            print(f"Sample DataFrame shape: {sample_df.shape}")
+        
         data = load_custom_dataset(dataset)
         if data:
             print(f"Train subgraphs: {len(data['train'])}")
