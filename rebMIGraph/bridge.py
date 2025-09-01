@@ -13,7 +13,7 @@ class PickleDatasetLoader:
     
     def __init__(self, dataset_name):
         self.dataset_name = dataset_name.lower()
-        self.base_path = f"datasets/{self.dataset_name}"
+        self.base_path = f"../datasets/{self.dataset_name}"
         
     def load_pickle(self, file_suffix):
         """Load pickle file with error handling"""

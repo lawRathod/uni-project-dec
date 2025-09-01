@@ -34,6 +34,14 @@ import random
 
 from sklearn.metrics import accuracy_score, precision_score, recall_score, auc, roc_curve, roc_auc_score, f1_score
 
+# Import custom dataset adapter
+try:
+    from rebmi_adapter import create_inductive_split_custom, get_dataset_info
+    CUSTOM_DATASETS_AVAILABLE = True
+except ImportError:
+    CUSTOM_DATASETS_AVAILABLE = False
+    print("Warning: rebmi_adapter not available. Custom datasets (Twitch/Event) will not work.")
+
 # System configuration
 CUDA_DEVICE = 2  # GPU device number
 
@@ -62,7 +70,7 @@ for which_run in range(1, num_of_runs):
     
     # =========================== MODEL AND DATA CONFIGURATION ===========================
     model_type = "GCN"  # GCN, GAT, SAGE, SGC
-    data_type = "Cora"  # CiteSeer, Cora, PubMed, Flickr, Reddit
+    data_type = "Custom_Twitch"  # CiteSeer, Cora, PubMed, Flickr, Reddit, Custom_Twitch, Custom_Event
     mode = "TSTS"  # train on subgraph, test on subgraph
     
     # =========================== DATASET SPLIT SIZES ===========================
@@ -91,6 +99,9 @@ for which_run in range(1, num_of_runs):
     PUBMED_NUM_TEST_TARGET = 4500
     PUBMED_NUM_TEST_SHADOW = 4500
     
+    # Custom datasets (Twitch, Event) - handled by rebmi_adapter
+    # No per-class splits needed as adapter handles subgraph combination
+    
     # =========================== MODEL ARCHITECTURE ===========================
     # GAT hyperparameters
     GAT_HIDDEN_DIM = 8
@@ -117,7 +128,7 @@ for which_run in range(1, num_of_runs):
     SAGE_EPOCHS_CORA_CITESEER = 16   # 301 #16 for CiteSeer n Cora
     SAGE_EPOCHS_PUBMED = 101         # 101 for PubMed
     SAGE_EPOCHS_FLICKR_REDDIT = 301  # 301 for Flickr n Reddit
-    DEFAULT_EPOCHS = 301             # Default for non-SAGE models
+    DEFAULT_EPOCHS = 31             # Default for non-SAGE models
     
 
     save_shadow_OutTrain = "posteriorsShadowOut_" + mode + "_" + data_type + "_" + model_type + ".txt"
@@ -133,6 +144,8 @@ for which_run in range(1, num_of_runs):
     '''
     ######################################## Data ##############################################
     '''
+    custom_dataset = False  # Flag for custom datasets
+    
     if data_type == "Reddit":
         ###################################### Reddit ##################################
 
@@ -207,12 +220,47 @@ for which_run in range(1, num_of_runs):
         num_test_Target = PUBMED_NUM_TEST_TARGET
         num_test_Shadow = PUBMED_NUM_TEST_SHADOW
 
+    elif data_type.startswith("Custom_"):
+        ###################################### Custom Datasets (Twitch, Event) ##################################
+        
+        if not CUSTOM_DATASETS_AVAILABLE:
+            print("Error: Custom datasets require rebmi_adapter.py")
+            exit(1)
+            
+        # Extract dataset name (Custom_Twitch -> twitch)
+        dataset_name = data_type.split("_", 1)[1].lower()
+        print(f"Loading custom dataset: {dataset_name}")
+        
+        # Get dataset info and create inductive split
+        num_features, num_classes = get_dataset_info(dataset_name)
+        data_new = create_inductive_split_custom(dataset_name)
+        
+        print(f"Custom dataset loaded: {num_features} features, {num_classes} classes")
+        
+        # Create a mock dataset object for compatibility
+        class MockDataset:
+            def __init__(self, num_features, num_classes):
+                self.num_features = num_features
+                self.num_node_features = num_features  # For compatibility
+                self.num_classes = num_classes
+        
+        dataset = MockDataset(num_features, num_classes)
+        
+        # Set variables needed for NeighborSampler
+        num_test_Target = data_new.target_x.shape[0] if data_new.target_x is not None else 0
+        num_test_Shadow = data_new.shadow_x.shape[0] if data_new.shadow_x is not None else 0
+        
+        # Skip the normal dataset loading and inductive split creation
+        custom_dataset = True
+
     else:
         print("Error: No data specified")
 
-    data = dataset[0]
-    len_y = data.y.size(0)
-    print("data", data)
+    # Skip normal dataset processing for custom datasets
+    if not custom_dataset:
+        data = dataset[0]
+        len_y = data.y.size(0)
+        print("data", data)
 
 
 
@@ -703,11 +751,13 @@ for which_run in range(1, num_of_runs):
     # --- create labels_list---
     label_list = [x for x in range(dataset.num_classes)]
 
-    # convert all label to list
-    label_idx = data.y.numpy().tolist()
+    # Skip normal inductive split for custom datasets
+    if not custom_dataset:
+        # convert all label to list
+        label_idx = data.y.numpy().tolist()
 
-    data_new = get_inductive_spilt(data, dataset.num_classes, num_train_Train_per_class, num_train_Shadow_per_class,
-                                   num_test_Target, num_test_Shadow)
+        data_new = get_inductive_spilt(data, dataset.num_classes, num_train_Train_per_class, num_train_Shadow_per_class,
+                                       num_test_Target, num_test_Shadow)
 
     print("data new", data_new)
     print("data_new.shadow_test_mask.sum()", data_new.shadow_test_mask.sum())
@@ -884,7 +934,7 @@ for which_run in range(1, num_of_runs):
             pred_Intrain_ps = torch.exp(pred)
             np.savetxt(save_target_InTrain, pred_Intrain_ps.cpu().detach().numpy())
 
-            np.save(save_target_InTrain_nodes_neigbors, nodes_and_neighbors)
+            # np.save(save_target_InTrain_nodes_neigbors, nodes_and_neighbors)  # Skip for now due to inhomogeneous shape
 
 
             # print("End InTrain for target")
@@ -926,7 +976,7 @@ for which_run in range(1, num_of_runs):
             # print("incremented_nodes_and_neighbors", incremented_nodes_and_neighbors)
 
 
-            np.save(save_target_OutTrain_nodes_neigbors, incremented_nodes_and_neighbors)
+            # np.save(save_target_OutTrain_nodes_neigbors, incremented_nodes_and_neighbors)  # Skip for now due to shape issues
 
             # print("End OutTrain for target")
 
@@ -1030,7 +1080,7 @@ for which_run in range(1, num_of_runs):
             pred_Intrain_ps = pred_all_inTrain  # torch.exp(pred)
             np.savetxt(save_target_InTrain, pred_Intrain_ps.cpu().detach().numpy())
             #
-            np.save(save_target_InTrain_nodes_neigbors, nodes_and_neighbors)
+            # np.save(save_target_InTrain_nodes_neigbors, nodes_and_neighbors)  # Skip for now due to inhomogeneous shape
             # print("nodes_and_neighborsnodes_and_neighbors", nodes_and_neighbors) # 630
 
             # print("End InTrain for target")
@@ -1087,7 +1137,7 @@ for which_run in range(1, num_of_runs):
                 res_0 = nodes_and_neighbors[i][0] + num_test_Target
                 incremented_nodes_and_neighbors.append((res_0, res))
 
-            np.save(save_target_OutTrain_nodes_neigbors, incremented_nodes_and_neighbors)
+            # np.save(save_target_OutTrain_nodes_neigbors, incremented_nodes_and_neighbors)  # Skip for now due to shape issues
 
             # print("End OutTrain for target")
 
@@ -1709,7 +1759,7 @@ for which_run in range(1, num_of_runs):
                         auroc += roc_auc_score(y_true.cpu().numpy(), y_pred.cpu().numpy())
                         # print("auroc", auroc)
 
-                        precision += precision_score(y_true.cpu().numpy(), y_pred.cpu().numpy(), average='weighted')
+                        precision += precision_score(y_true.cpu().numpy(), y_pred.cpu().numpy(), average='weighted', zero_division=0)
 
                         recall += recall_score(y_true.cpu().numpy(), y_pred.cpu().numpy(), average='weighted')
 
@@ -1750,7 +1800,7 @@ for which_run in range(1, num_of_runs):
                         auroc += roc_auc_score(y_true.cpu().numpy(), y_pred.cpu().numpy())
                         # print("auroc", auroc)
 
-                        precision += precision_score(y_true.cpu().numpy(), y_pred.cpu().numpy(), average='weighted')
+                        precision += precision_score(y_true.cpu().numpy(), y_pred.cpu().numpy(), average='weighted', zero_division=0)
 
                         recall += recall_score(y_true.cpu().numpy(), y_pred.cpu().numpy(), average='weighted')
 
