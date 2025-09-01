@@ -87,8 +87,14 @@ class DatasetLoader:
     def _load_raw_data(self, file_path: Path) -> Any:
         """Load raw data from file."""
         if file_path.suffix == '.pt':
-            # Use weights_only=False for compatibility with older PyTorch files
-            return torch.load(file_path, weights_only=False)
+            # .pt files might be pickled data, not torch tensors
+            try:
+                # First try torch.load
+                return torch.load(file_path, weights_only=False, map_location='cpu')
+            except:
+                # If that fails, try pickle
+                with open(file_path, 'rb') as f:
+                    return pickle.load(f)
         elif file_path.suffix == '.pickle':
             with open(file_path, 'rb') as f:
                 return pickle.load(f)
