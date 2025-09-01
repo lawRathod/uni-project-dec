@@ -16,4 +16,6 @@ __pycache__
 
 # Ignore specific files
 !rebMIGraph/TSTS.py
+!rebMIGraph/bridge.py
+!rebMIGraph/rebmi_adapter.py
 rebMIGraph/**
