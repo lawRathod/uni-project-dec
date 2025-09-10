@@ -33,12 +33,12 @@ class PickleDatasetLoader:
         # Add node features from DataFrame
         if 'x' not in data:
             # Use all numeric columns except target as features
-            feature_cols = [col for col in df.columns if col not in ['mature', 'gender'] and df[col].dtype in ['int64', 'float64']]
+            feature_cols = [col for col in df.columns if col not in ['affiliate', 'gender'] and df[col].dtype in ['int64', 'float64']]
             data.x = torch.tensor(df[feature_cols].values, dtype=torch.float)
         
         # Add target labels
-        if 'mature' in df.columns:  # Twitch dataset
-            data.y = torch.tensor(df['mature'].values, dtype=torch.long)
+        if 'affiliate' in df.columns:  # Twitch dataset
+            data.y = torch.tensor(df['affiliate'].values, dtype=torch.long)
         elif 'gender' in df.columns:  # Event dataset
             # Convert string gender to numeric
             if df['gender'].dtype.name == 'category' or df['gender'].dtype == object:

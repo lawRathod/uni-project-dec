@@ -36,7 +36,7 @@ from sklearn.metrics import accuracy_score, precision_score, recall_score, auc, 
 
 # Import custom dataset adapter
 try:
-    from rebmi_adapter import create_inductive_split_custom, get_dataset_info
+    from rebmi_adapter import create_inductive_split_custom
     CUSTOM_DATASETS_AVAILABLE = True
 except ImportError:
     CUSTOM_DATASETS_AVAILABLE = False
@@ -79,6 +79,9 @@ for which_run in range(1, num_of_runs):
     CUSTOM_SUBSET_RATIO = 0.3  # Use 30% of subgraphs (0.1=10%, 0.5=50%, 1.0=100%/full data)
     # Method 2: Use explicit maximum number (overrides ratio if set)
     CUSTOM_MAX_SUBGRAPHS = None  # e.g., 10 to use max 10 subgraphs per split, None to use ratio
+    
+    # Feature engineering configuration
+    CUSTOM_ADVANCED_FEATURES = True  # Use advanced graph features (degree, clustering, centrality, etc.)
     
     # =========================== DATASET SPLIT SIZES ===========================
     # Reddit dataset splits
@@ -128,7 +131,7 @@ for which_run in range(1, num_of_runs):
     
     # Attack model hyperparameters
     ATTACK_LR = 0.01         # 0.01 #0.00001
-    ATTACK_EPOCHS = 30      # 1000
+    ATTACK_EPOCHS = 100      # 1000
     ATTACK_BATCH_SIZE = 32
     ATTACK_TEST_BATCH_SIZE = 64
     
@@ -136,7 +139,7 @@ for which_run in range(1, num_of_runs):
     SAGE_EPOCHS_CORA_CITESEER = 16   # 301 #16 for CiteSeer n Cora
     SAGE_EPOCHS_PUBMED = 101         # 101 for PubMed
     SAGE_EPOCHS_FLICKR_REDDIT = 301  # 301 for Flickr n Reddit
-    DEFAULT_EPOCHS = 31             # Default for non-SAGE models
+    DEFAULT_EPOCHS = 301             # Default for non-SAGE models
     
 
     save_shadow_OutTrain = "posteriorsShadowOut_" + mode + "_" + data_type + "_" + model_type + ".txt"
@@ -239,9 +242,8 @@ for which_run in range(1, num_of_runs):
         dataset_name = data_type.split("_", 1)[1].lower()
         print(f"Loading custom dataset: {dataset_name}")
         
-        # Get dataset info and create inductive split with subset configuration
-        num_features, num_classes = get_dataset_info(dataset_name, subset_ratio=CUSTOM_SUBSET_RATIO, max_subgraphs=CUSTOM_MAX_SUBGRAPHS)
-        data_new = create_inductive_split_custom(dataset_name, subset_ratio=CUSTOM_SUBSET_RATIO, max_subgraphs=CUSTOM_MAX_SUBGRAPHS)
+        # Create inductive split with subset configuration (returns data + metadata)
+        data_new, num_features, num_classes = create_inductive_split_custom(dataset_name, subset_ratio=CUSTOM_SUBSET_RATIO, max_subgraphs=CUSTOM_MAX_SUBGRAPHS, advanced_features=CUSTOM_ADVANCED_FEATURES)
         
         print(f"Custom dataset loaded: {num_features} features, {num_classes} classes")
         

@@ -47,7 +47,7 @@ class RebMIData:
                 setattr(self, attr, tensor.to(device))
         return self
 
-def create_inductive_split_custom(dataset_name, normalize=True, subset_ratio=1.0, max_subgraphs=None):
+def create_inductive_split_custom(dataset_name, normalize=True, subset_ratio=1.0, max_subgraphs=None, advanced_features=True):
     """Create inductive split for custom datasets (Twitch/Event)
     
     Args:
@@ -55,6 +55,7 @@ def create_inductive_split_custom(dataset_name, normalize=True, subset_ratio=1.0
         normalize: Whether to normalize features (default: True)
         subset_ratio: Fraction of data to use (0.0 to 1.0, default: 1.0 for all data)
         max_subgraphs: Maximum number of subgraphs per split (overrides subset_ratio if specified)
+        advanced_features: Whether to use advanced feature engineering (default: True)
     """
     
     # Load data using bridge
@@ -138,9 +139,9 @@ def create_inductive_split_custom(dataset_name, normalize=True, subset_ratio=1.0
     
     # Feature engineering and normalization
     if rebmi_data.target_x is not None:
-        # Fast lightweight feature engineering
-        def enhance_features_fast(x, edge_index, y=None):
-            """Add only node degree (fast) for better discriminative power"""
+        # Simple feature engineering (fast, lightweight)
+        def enhance_features_simple(x, edge_index, y=None):
+            """Add basic node degree features for better discriminative power"""
             from torch_geometric.utils import degree
             
             # Only add node degrees - very fast O(edges)
@@ -150,17 +151,128 @@ def create_inductive_split_custom(dataset_name, normalize=True, subset_ratio=1.0
             deg_squared = (degrees / degrees.max()) ** 2  # Normalized squared degree
             
             enhanced_x = torch.cat([x, degrees, deg_squared], dim=1)
+            print(f"Simple enhanced features: {x.shape[1]} -> {enhanced_x.shape[1]} (+{enhanced_x.shape[1] - x.shape[1]} new features)")
             
             return enhanced_x
         
-        # Enhance all datasets (fast)
-        rebmi_data.target_x = enhance_features_fast(rebmi_data.target_x, rebmi_data.target_edge_index, rebmi_data.target_y)
+        # Enhanced feature engineering for better performance
+        def enhance_features_advanced(x, edge_index, y=None):
+            """Add complex graph features for better discriminative power"""
+            from torch_geometric.utils import degree
+            import torch.nn.functional as F
+            
+            num_nodes = x.shape[0]
+            
+            # 1. Node degree features (in/out/total)
+            in_degrees = degree(edge_index[1], num_nodes).unsqueeze(1).float()
+            out_degrees = degree(edge_index[0], num_nodes).unsqueeze(1).float()
+            total_degrees = in_degrees + out_degrees
+            
+            # 2. Normalized degree features
+            max_degree = total_degrees.max() + 1e-8  # Avoid division by zero
+            norm_in_deg = in_degrees / max_degree
+            norm_out_deg = out_degrees / max_degree
+            norm_total_deg = total_degrees / max_degree
+            
+            # 3. Degree centrality variants
+            deg_squared = (norm_total_deg) ** 2
+            deg_log = torch.log(total_degrees + 1)  # Log degree (handles degree=0)
+            deg_sqrt = torch.sqrt(total_degrees)
+            
+            # 4. Local clustering approximation (simplified)
+            # Count triangles by looking at 2-hop neighbors
+            adj_dense = torch.zeros(num_nodes, num_nodes)
+            adj_dense[edge_index[0], edge_index[1]] = 1
+            triangles = torch.matmul(adj_dense, adj_dense)
+            triangle_count = torch.diagonal(triangles).unsqueeze(1).float()
+            clustering_approx = triangle_count / (total_degrees * (total_degrees - 1) / 2 + 1e-8)
+            
+            # 5. Ego-network features
+            # Average degree of neighbors
+            neighbor_degrees = torch.zeros(num_nodes, 1)
+            for i in range(num_nodes):
+                neighbors = edge_index[1][edge_index[0] == i]
+                if len(neighbors) > 0:
+                    neighbor_degrees[i] = total_degrees[neighbors].float().mean()
+                else:
+                    neighbor_degrees[i] = 0
+            
+            # 6. Feature interaction terms (original features with graph structure)
+            if x.shape[1] > 0:
+                # Weighted feature aggregation by degree
+                degree_weighted_features = x * norm_total_deg
+                # Feature variance scaled by connectivity
+                feature_std = x.std(dim=1, keepdim=True)
+                connectivity_scaled_variance = feature_std * norm_total_deg
+            else:
+                degree_weighted_features = torch.zeros_like(norm_total_deg)
+                connectivity_scaled_variance = torch.zeros_like(norm_total_deg)
+            
+            # 7. Structural role indicators
+            # Hub indicator (high degree nodes)
+            hub_indicator = (norm_total_deg > 0.8).float()
+            # Leaf indicator (degree 1 nodes)
+            leaf_indicator = (total_degrees == 1).float()
+            # Isolated indicator (degree 0 nodes)
+            isolated_indicator = (total_degrees == 0).float()
+            
+            # 8. Distance-based features (simplified)
+            # Average distance to high-degree nodes (top 10%)
+            top_degree_threshold = torch.quantile(total_degrees, 0.9)
+            high_degree_mask = total_degrees >= top_degree_threshold
+            dist_to_hubs = torch.zeros(num_nodes, 1)
+            if high_degree_mask.sum() > 0:
+                # Simplified: use direct connections as proxy for distance
+                hub_connections = torch.zeros(num_nodes)
+                for hub_idx in torch.where(high_degree_mask)[0]:
+                    connected_to_hub = edge_index[1][edge_index[0] == hub_idx]
+                    hub_connections[connected_to_hub] += 1
+                dist_to_hubs = (1.0 / (hub_connections + 1)).unsqueeze(1)
+            
+            # Combine all enhanced features
+            enhanced_features = [
+                x,  # Original features
+                # Degree features
+                in_degrees, out_degrees, total_degrees,
+                norm_in_deg, norm_out_deg, norm_total_deg,
+                # Degree variants
+                deg_squared, deg_log, deg_sqrt,
+                # Clustering and triangles
+                triangle_count, clustering_approx,
+                # Neighborhood features
+                neighbor_degrees,
+                # Feature interactions
+                degree_weighted_features, connectivity_scaled_variance,
+                # Structural roles
+                hub_indicator, leaf_indicator, isolated_indicator,
+                # Distance features
+                dist_to_hubs
+            ]
+            
+            # Filter out empty tensors and concatenate
+            valid_features = [f for f in enhanced_features if f.numel() > 0]
+            enhanced_x = torch.cat(valid_features, dim=1)
+            
+            print(f"Enhanced features: {x.shape[1]} -> {enhanced_x.shape[1]} (+{enhanced_x.shape[1] - x.shape[1]} new features)")
+            
+            return enhanced_x
+        
+        # Choose feature enhancement strategy
+        if advanced_features:
+            print("Applying advanced feature engineering...")
+            enhance_func = enhance_features_advanced
+        else:
+            print("Applying simple feature engineering...")
+            enhance_func = enhance_features_simple
+        
+        # Enhance all datasets
+        rebmi_data.target_x = enhance_func(rebmi_data.target_x, rebmi_data.target_edge_index, rebmi_data.target_y)
         if rebmi_data.target_test_x is not None:
-            rebmi_data.target_test_x = enhance_features_fast(rebmi_data.target_test_x, rebmi_data.target_test_edge_index, rebmi_data.target_test_y)
+            rebmi_data.target_test_x = enhance_func(rebmi_data.target_test_x, rebmi_data.target_test_edge_index, rebmi_data.target_test_y)
         if rebmi_data.shadow_x is not None:
-            rebmi_data.shadow_x = enhance_features_fast(rebmi_data.shadow_x, rebmi_data.shadow_edge_index, rebmi_data.shadow_y)
+            rebmi_data.shadow_x = enhance_func(rebmi_data.shadow_x, rebmi_data.shadow_edge_index, rebmi_data.shadow_y)
         if rebmi_data.shadow_test_x is not None:
-            rebmi_data.shadow_test_x = enhance_features_fast(rebmi_data.shadow_test_x, rebmi_data.shadow_test_edge_index, rebmi_data.shadow_test_y)
+            rebmi_data.shadow_test_x = enhance_func(rebmi_data.shadow_test_x, rebmi_data.shadow_test_edge_index, rebmi_data.shadow_test_y)
         
         # Use original dataset labels (no synthetic manipulation)
         print("Using original dataset labels with enhanced features...")
@@ -179,16 +291,20 @@ def create_inductive_split_custom(dataset_name, normalize=True, subset_ratio=1.0
             if rebmi_data.shadow_test_x is not None:
                 rebmi_data.shadow_test_x = (rebmi_data.shadow_test_x - mean) / std
     
-    return rebmi_data
+    # Return both data and metadata to avoid duplicate computation
+    num_features = rebmi_data.target_x.shape[1] if rebmi_data.target_x is not None else 0
+    num_classes = len(torch.unique(rebmi_data.target_y)) if rebmi_data.target_y is not None else 0
+    
+    return rebmi_data, num_features, num_classes
 
-def get_dataset_info(dataset_name, subset_ratio=1.0, max_subgraphs=None):
+def get_dataset_info(dataset_name, subset_ratio=1.0, max_subgraphs=None, advanced_features=True):
     """Get dataset metadata for TSTS.py"""
     data = load_custom_dataset(dataset_name)
     if not data:
         return None, None
     
     # Create a dummy enhanced feature to get correct feature count
-    dummy_data = create_inductive_split_custom(dataset_name, subset_ratio=subset_ratio, max_subgraphs=max_subgraphs)
+    dummy_data = create_inductive_split_custom(dataset_name, subset_ratio=subset_ratio, max_subgraphs=max_subgraphs, advanced_features=advanced_features)
     if dummy_data and dummy_data.target_x is not None:
         enhanced_features = dummy_data.target_x.shape[1]
     else:
@@ -203,7 +319,8 @@ if __name__ == "__main__":
         
         # Test with full dataset
         print("\n1. Full dataset:")
-        rebmi_data_full = create_inductive_split_custom(dataset, subset_ratio=1.0)
+        rebmi_data_full, num_feat, num_cls = create_inductive_split_custom(dataset, subset_ratio=1.0)
+        print(f"Features: {num_feat}, Classes: {num_cls}")
         print(f"Target train: {rebmi_data_full.target_x.shape if rebmi_data_full.target_x is not None else 'None'}")
         print(f"Target test: {rebmi_data_full.target_test_x.shape if rebmi_data_full.target_test_x is not None else 'None'}")
         print(f"Shadow train: {rebmi_data_full.shadow_x.shape if rebmi_data_full.shadow_x is not None else 'None'}")
@@ -211,7 +328,8 @@ if __name__ == "__main__":
         
         # Test with 30% subset
         print("\n2. 30% subset:")
-        rebmi_data_subset = create_inductive_split_custom(dataset, subset_ratio=0.3)
+        rebmi_data_subset, num_feat, num_cls = create_inductive_split_custom(dataset, subset_ratio=0.3)
+        print(f"Features: {num_feat}, Classes: {num_cls}")
         print(f"Target train: {rebmi_data_subset.target_x.shape if rebmi_data_subset.target_x is not None else 'None'}")
         print(f"Target test: {rebmi_data_subset.target_test_x.shape if rebmi_data_subset.target_test_x is not None else 'None'}")
         print(f"Shadow train: {rebmi_data_subset.shadow_x.shape if rebmi_data_subset.shadow_x is not None else 'None'}")
@@ -219,8 +337,21 @@ if __name__ == "__main__":
         
         # Test with max 5 subgraphs
         print("\n3. Max 5 subgraphs:")
-        rebmi_data_max = create_inductive_split_custom(dataset, max_subgraphs=5)
+        rebmi_data_max, num_feat, num_cls = create_inductive_split_custom(dataset, max_subgraphs=5)
+        print(f"Features: {num_feat}, Classes: {num_cls}")
         print(f"Target train: {rebmi_data_max.target_x.shape if rebmi_data_max.target_x is not None else 'None'}")
         print(f"Target test: {rebmi_data_max.target_test_x.shape if rebmi_data_max.target_test_x is not None else 'None'}")
         print(f"Shadow train: {rebmi_data_max.shadow_x.shape if rebmi_data_max.shadow_x is not None else 'None'}")
         print(f"Shadow test: {rebmi_data_max.shadow_test_x.shape if rebmi_data_max.shadow_test_x is not None else 'None'}")
+        
+        # Test simple vs advanced features
+        print("\n4. Simple features (30% subset):")
+        rebmi_data_simple, num_feat_simple, num_cls = create_inductive_split_custom(dataset, subset_ratio=0.3, advanced_features=False)
+        print(f"Features: {num_feat_simple}, Classes: {num_cls}")
+        print(f"Target train: {rebmi_data_simple.target_x.shape if rebmi_data_simple.target_x is not None else 'None'}")
+        
+        print("\n5. Advanced features (30% subset):")
+        rebmi_data_advanced, num_feat_advanced, num_cls = create_inductive_split_custom(dataset, subset_ratio=0.3, advanced_features=True)
+        print(f"Features: {num_feat_advanced}, Classes: {num_cls}")
+        print(f"Target train: {rebmi_data_advanced.target_x.shape if rebmi_data_advanced.target_x is not None else 'None'}")
+        print(f"Feature difference: {num_feat_advanced - num_feat_simple} additional advanced features")
