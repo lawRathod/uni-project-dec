@@ -69,7 +69,7 @@ for which_run in range(1, num_of_runs):
     '''
     
     # =========================== MODEL AND DATA CONFIGURATION ===========================
-    model_type = "GAT"  # GCN, GAT
+    model_type = "SGC"  # GCN, GAT, SAGE, SGC
     data_type = "Custom_Twitch"  # CiteSeer, Cora, PubMed, Flickr, Reddit, Custom_Twitch, Custom_Event
     mode = "TSTS"  # train on subgraph, test on subgraph
     
@@ -284,6 +284,9 @@ for which_run in range(1, num_of_runs):
         
         print(f"Custom dataset node counts - Train: Target={num_train_Target}, Shadow={num_train_Shadow}, Test: Target={num_test_Target}, Shadow={num_test_Shadow}")
         
+        # Set len_y for custom datasets (total number of nodes in target dataset)
+        len_y = num_train_Target + num_test_Target
+        
         # Skip the normal dataset loading and inductive split creation
         custom_dataset = True
 
@@ -332,11 +335,15 @@ for which_run in range(1, num_of_runs):
                 self.convs = torch.nn.ModuleList()
                 self.convs.append(SAGEConv(dataset.num_node_features, 256))
                 self.convs.append(SAGEConv(256, dataset.num_classes))
+                self.conv3 = None  # Not used for SAGE
+                self.dropout = 0.0  # Set dropout for SAGE
 
             elif model_type == "SGC":
                 # SGC
                 self.conv1 = SGConv(dataset.num_node_features, 256, K=2, cached=False)
                 self.conv2 = SGConv(256, dataset.num_classes, K=2, cached=False)
+                self.conv3 = None  # Not used for SGC
+                self.dropout = 0.0  # Set dropout for SGC
 
             elif model_type == "GAT":
                 # GAT
@@ -347,8 +354,12 @@ for which_run in range(1, num_of_runs):
                     # self.conv2 = GATConv(8 * 8, dataset.num_classes, heads=8, concat=False, dropout=0.1)
                 else:
                     self.conv2 = GATConv(8 * 8, dataset.num_classes, heads=1, concat=False)
+                self.conv3 = None  # Not used for GAT
+                self.dropout = 0.0  # Set dropout for GAT
             else:
                 print("Error: No model selected")
+                self.conv3 = None  # Default
+                self.dropout = 0.0  # Default dropout
 
         def forward(self, x, edge_index):
             # print("xxxxxxx", x.size())
@@ -466,11 +477,15 @@ for which_run in range(1, num_of_runs):
                 self.convs = torch.nn.ModuleList()
                 self.convs.append(SAGEConv(dataset.num_node_features, 256))
                 self.convs.append(SAGEConv(256, dataset.num_classes))
+                self.conv3 = None  # Not used for SAGE
+                self.dropout = 0.0  # Set dropout for SAGE
 
             elif model_type == "SGC":
                 # SGC
                 self.conv1 = SGConv(dataset.num_node_features, 256, K=2, cached=False)
                 self.conv2 = SGConv(256, dataset.num_classes, K=2, cached=False)
+                self.conv3 = None  # Not used for SGC
+                self.dropout = 0.0  # Set dropout for SGC
 
             elif model_type == "GAT":
                 # GAT
@@ -481,8 +496,12 @@ for which_run in range(1, num_of_runs):
                     # self.conv2 = GATConv(8 * 8, dataset.num_classes, heads=8, concat=False, dropout=0.1)
                 else:
                     self.conv2 = GATConv(8 * 8, dataset.num_classes, heads=1, concat=False)
+                self.conv3 = None  # Not used for GAT
+                self.dropout = 0.0  # Set dropout for GAT
             else:
                 print("Error: No model selected")
+                self.conv3 = None  # Default
+                self.dropout = 0.0  # Default dropout
 
         def forward(self, x, edge_index):
             # print("xxxxxxx", x.size())
