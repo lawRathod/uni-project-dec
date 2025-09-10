@@ -69,7 +69,7 @@ for which_run in range(1, num_of_runs):
     '''
     
     # =========================== MODEL AND DATA CONFIGURATION ===========================
-    model_type = "GCN"  # GCN, GAT, SAGE, SGC
+    model_type = "GAT"  # GCN, GAT
     data_type = "Custom_Twitch"  # CiteSeer, Cora, PubMed, Flickr, Reddit, Custom_Twitch, Custom_Event
     mode = "TSTS"  # train on subgraph, test on subgraph
     
@@ -129,11 +129,25 @@ for which_run in range(1, num_of_runs):
     LR_DEFAULT = 0.0001      # Default learning rate for GCN, GAT, SGC
     LR_CUSTOM = 0.01         # Higher LR for custom datasets with few features
     
-    # Attack model hyperparameters
-    ATTACK_LR = 0.01         # 0.01 #0.00001
-    ATTACK_EPOCHS = 100      # 1000
-    ATTACK_BATCH_SIZE = 32
-    ATTACK_TEST_BATCH_SIZE = 64
+    # Attack model hyperparameters (optimized for better performance)
+    USE_IMPROVED_ATTACK = True  # Toggle to use improved attack model and settings
+    
+    if USE_IMPROVED_ATTACK:
+        # Optimized hyperparameters for better attack performance
+        ATTACK_LR = 0.001        # Lower LR for more stable training
+        ATTACK_EPOCHS = 150      # More epochs for better convergence
+        ATTACK_BATCH_SIZE = 64   # Larger batch for stability
+        ATTACK_TEST_BATCH_SIZE = 128
+        ATTACK_DROPOUT = 0.3     # Dropout to prevent overfitting
+        ATTACK_WEIGHT_DECAY = 1e-4  # L2 regularization
+    else:
+        # Original hyperparameters
+        ATTACK_LR = 0.01         
+        ATTACK_EPOCHS = 100      
+        ATTACK_BATCH_SIZE = 32
+        ATTACK_TEST_BATCH_SIZE = 64
+        ATTACK_DROPOUT = 0.0
+        ATTACK_WEIGHT_DECAY = 0
     
     # Model training epochs
     SAGE_EPOCHS_CORA_CITESEER = 16   # 301 #16 for CiteSeer n Cora
@@ -1613,6 +1627,7 @@ for which_run in range(1, num_of_runs):
     # print(features, labels)
 
     class AttackModel(nn.Module):
+        """Old attack model (kept for reference)"""
         def __init__(self):
             super().__init__()
 
@@ -1647,7 +1662,7 @@ for which_run in range(1, num_of_runs):
 
 
     class Net(nn.Module):
-        # define nn
+        """Original simple attack model"""
         def __init__(self):
             super(Net, self).__init__()
             self.fc1 = nn.Linear(dataset.num_classes, 100)
@@ -1663,6 +1678,73 @@ for which_run in range(1, num_of_runs):
             X = self.softmax(X)
 
             return X
+    
+    class ImprovedAttackModel(nn.Module):
+        """Enhanced attack model with better architecture for membership inference"""
+        def __init__(self, input_dim=None):
+            super(ImprovedAttackModel, self).__init__()
+            input_size = input_dim if input_dim else dataset.num_classes
+            
+            # Deeper network with batch normalization and dropout
+            self.fc1 = nn.Linear(input_size, 256)
+            self.bn1 = nn.BatchNorm1d(256)
+            self.dropout1 = nn.Dropout(ATTACK_DROPOUT)
+            
+            self.fc2 = nn.Linear(256, 128)
+            self.bn2 = nn.BatchNorm1d(128)
+            self.dropout2 = nn.Dropout(ATTACK_DROPOUT)
+            
+            self.fc3 = nn.Linear(128, 64)
+            self.bn3 = nn.BatchNorm1d(64)
+            self.dropout3 = nn.Dropout(ATTACK_DROPOUT * 0.7)  # Less dropout in later layers
+            
+            self.fc4 = nn.Linear(64, 32)
+            self.bn4 = nn.BatchNorm1d(32)
+            
+            self.fc5 = nn.Linear(32, 2)
+            
+            # Initialize weights with better strategy
+            self._initialize_weights()
+            
+        def _initialize_weights(self):
+            for m in self.modules():
+                if isinstance(m, nn.Linear):
+                    nn.init.kaiming_normal_(m.weight, mode='fan_out', nonlinearity='relu')
+                    if m.bias is not None:
+                        nn.init.constant_(m.bias, 0)
+                elif isinstance(m, nn.BatchNorm1d):
+                    nn.init.constant_(m.weight, 1)
+                    nn.init.constant_(m.bias, 0)
+        
+        def forward(self, x):
+            # Layer 1
+            x = self.fc1(x)
+            x = self.bn1(x)
+            x = F.relu(x)
+            x = self.dropout1(x)
+            
+            # Layer 2
+            x = self.fc2(x)
+            x = self.bn2(x)
+            x = F.relu(x)
+            x = self.dropout2(x)
+            
+            # Layer 3
+            x = self.fc3(x)
+            x = self.bn3(x)
+            x = F.relu(x)
+            x = self.dropout3(x)
+            
+            # Layer 4
+            x = self.fc4(x)
+            x = self.bn4(x)
+            x = F.relu(x)
+            
+            # Output layer
+            x = self.fc5(x)
+            
+            # No softmax here - use with CrossEntropyLoss
+            return x
 
 
     def init_weights(m):
@@ -1671,14 +1753,22 @@ for which_run in range(1, num_of_runs):
             m.bias.data.fill_(0.01)
 
 
-    # create the ntwk
-    attack_model = Net()  # AttackModel()
+    # create the ntwk - use improved model for better performance
+    USE_IMPROVED_MODEL = USE_IMPROVED_ATTACK  # Use improved model if attack improvements are enabled
+    
+    if USE_IMPROVED_MODEL:
+        attack_model = ImprovedAttackModel()
+        print("Using ImprovedAttackModel with BatchNorm and Dropout")
+    else:
+        attack_model = Net()  # Original model
+        attack_model.apply(init_weights)  # initialize weight rather than randomly
+        print("Using original Net model")
+    
     attack_model = attack_model.to(device)
-    attack_model.apply(init_weights)  # initialize weight rather than randomly
     print(attack_model)
 
 
-    def attack_train(model, trainloader, testloader, criterion, optimizer, epochs, steps=0):
+    def attack_train(model, trainloader, testloader, criterion, optimizer, epochs, steps=0, scheduler=None):
         # train ntwk
 
         # Decay LR by a factor of 0.1 every 7 epochs
@@ -1710,8 +1800,11 @@ for which_run in range(1, num_of_runs):
                 loss = criterion(logps, labels)
 
                 # Actual probabilities
-                ps = logps  # torch.exp(logps) #Only use this if the loss is nlloss
-                # print("ppppp",ps)
+                # For ImprovedAttackModel, apply softmax to get probabilities
+                if USE_IMPROVED_MODEL:
+                    ps = F.softmax(logps, dim=1)
+                else:
+                    ps = logps  # Original model already has softmax
 
                 top_p, top_class = ps.topk(1,
                                            dim=1)  # top_p gives the probabilities while top_class gives the predicted classes
@@ -1775,6 +1868,10 @@ for which_run in range(1, num_of_runs):
                       "Train Accuracy: {:.3f}".format(train_accuracy / len(trainloader)),
                       "Test Accuracy: {:.3f}".format(test_accuracy)
                       )
+                
+                # Step the scheduler if provided
+                if scheduler is not None:
+                    scheduler.step(test_loss)
 
         # # plot train and test loss
         # plt.show()
@@ -1818,7 +1915,10 @@ for which_run in range(1, num_of_runs):
                     test_loss += criterion(logps, labels)
 
                     # Actual probabilities
-                    ps = logps  # torch.exp(logps)
+                    if USE_IMPROVED_MODEL:
+                        ps = F.softmax(logps, dim=1)
+                    else:
+                        ps = logps  # Original model already has softmax
                     posteriors.append(ps)
 
                     # if singleclass=false
@@ -1854,7 +1954,10 @@ for which_run in range(1, num_of_runs):
                     test_loss += criterion(logps, labels)
 
                     # Actual probabilities
-                    ps = logps  # torch.exp(logps)
+                    if USE_IMPROVED_MODEL:
+                        ps = F.softmax(logps, dim=1)
+                    else:
+                        ps = logps  # Original model already has softmax
                     posteriors.append(ps)
 
                     # print("ps", ps)
@@ -1922,13 +2025,17 @@ for which_run in range(1, num_of_runs):
 
     criterion = nn.CrossEntropyLoss()  # nn.NLLLoss() # cross entropy loss
 
-    optimizer = torch.optim.Adam(attack_model.parameters(), lr=ATTACK_LR)  # 0.01 #0.00001
-
-    epochs = ATTACK_EPOCHS  # 1000
+    # Enhanced optimizer with weight decay for regularization
+    optimizer = torch.optim.Adam(attack_model.parameters(), lr=ATTACK_LR, weight_decay=ATTACK_WEIGHT_DECAY)
+    
+    # Learning rate scheduler for better convergence
+    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.5, patience=10)
+    
+    epochs = ATTACK_EPOCHS
 
     '''==============Train and test Attack model ========== '''
 
-    attack_train(attack_model, attack_train_data_loader, attack_test_data_loader, criterion, optimizer, epochs)
+    attack_train(attack_model, attack_train_data_loader, attack_test_data_loader, criterion, optimizer, epochs, scheduler=scheduler if USE_IMPROVED_MODEL else None)
 
     # test to confirm using attack_test_data_loader
     _, test_accuracyConfirmTest, posteriors, auroc, precision, recall, f_score, _, _ = attack_test(attack_model,
