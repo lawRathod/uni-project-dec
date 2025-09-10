@@ -1,9 +1,0 @@
-# @package _global_
-defaults:
-    - net_soc-advogato_upr-only
-
-general:
-    name : 'net_soc-advogato_upr-only_c'
-    compress: 'struct'
-    min_nodes: 950
-    max_nodes: 1100

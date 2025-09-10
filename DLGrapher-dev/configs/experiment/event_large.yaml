@@ -1,9 +1,0 @@
-# @package _global_
-defaults:
-    - experiment/event
-
-general:
-    min_nodes: 260
-    max_nodes: 260
-train:
-    batch_size: 8

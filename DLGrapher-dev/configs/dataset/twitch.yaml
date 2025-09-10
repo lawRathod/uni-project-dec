@@ -1,4 +1,0 @@
-name: twitch
-datadir: 'data/twitch/'
-tgt_col: 'affiliate'
-seed: 1234

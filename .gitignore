@@ -1,7 +1,6 @@
 # Ignore model checkpoints and data files
 *.pt
 *.ckpt
-*.pickle
 
 # Ignore zip archives
 *.zip

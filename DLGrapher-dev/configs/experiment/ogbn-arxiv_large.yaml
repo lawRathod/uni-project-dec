@@ -1,9 +1,0 @@
-# @package _global_
-defaults:
-    - experiment/ogbn-arxiv
-
-general:
-    min_nodes: 260
-    max_nodes: 260
-train:
-    batch_size: 2

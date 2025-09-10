@@ -1,9 +1,0 @@
-# @package _global_
-defaults:
-    - twitch_scale_unattr
-
-general:
-    name : 'twitch_scale_unattr_c'
-    compress: 'struct'
-    min_nodes: 1_200
-    max_nodes: 1_200

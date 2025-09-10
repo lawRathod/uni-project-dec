@@ -48,9 +48,52 @@ python TSTS.py
 - Standard (Existing): Cora, CiteSeer, PubMed, Flickr, Reddit
 - Custom: Twitch, Event
 
+## Setup and Running
+
+### 1. Environment Setup
+
+Use the provided conda environment file:
+
+```bash
+conda env create -f environment.yml
+conda activate rebmi
+```
+
+### 2. Dataset Preparation
+
+Place your datasets in the correct structure (see [datasets/README.md](datasets/README.md) for details):
+
+```
+datasets/
+├── twitch/
+│   ├── twitch_train.pickle
+│   ├── twitch_nontrain.pickle
+│   └── twitch_synth.pickle
+└── event/
+    ├── event_train.pickle
+    ├── event_nontrain.pickle
+    └── event_synth.pickle
+```
+
+### 3. Run the Attack
+
+Once environment is setup and datasets are in place:
+
+```bash
+cd rebMIGraph
+python TSTS.py
+```
+
+The script will:
+1. Load the configured dataset (edit lines 72-73 in TSTS.py to change)
+2. Train target model on real data
+3. Train shadow model on synthetic data
+4. Execute membership inference attack
+5. Report attack accuracy
+
 ## Requirements
 
-PyTorch, PyTorch Geometric, NetworkX, Pandas, NumPy, Scikit-learn
+PyTorch, PyTorch Geometric, NetworkX, Pandas, NumPy, Scikit-learn (all included in environment.yml)
 
 ## Reference
 

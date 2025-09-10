@@ -1,5 +1,0 @@
-name: event
-datadir: 'data/event/'
-tgt_col: 'gender'
-tgt_val: 'female'
-seed: 1234
