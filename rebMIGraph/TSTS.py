@@ -73,6 +73,13 @@ for which_run in range(1, num_of_runs):
     data_type = "Custom_Twitch"  # CiteSeer, Cora, PubMed, Flickr, Reddit, Custom_Twitch, Custom_Event
     mode = "TSTS"  # train on subgraph, test on subgraph
     
+    # Custom dataset subset configuration for performance improvement
+    # Choose ONE of the following methods:
+    # Method 1: Use ratio-based subset (recommended for consistency across datasets)
+    CUSTOM_SUBSET_RATIO = 0.3  # Use 30% of subgraphs (0.1=10%, 0.5=50%, 1.0=100%/full data)
+    # Method 2: Use explicit maximum number (overrides ratio if set)
+    CUSTOM_MAX_SUBGRAPHS = None  # e.g., 10 to use max 10 subgraphs per split, None to use ratio
+    
     # =========================== DATASET SPLIT SIZES ===========================
     # Reddit dataset splits
     REDDIT_NUM_TRAIN_PER_CLASS = 500  # 1000
@@ -232,9 +239,9 @@ for which_run in range(1, num_of_runs):
         dataset_name = data_type.split("_", 1)[1].lower()
         print(f"Loading custom dataset: {dataset_name}")
         
-        # Get dataset info and create inductive split
-        num_features, num_classes = get_dataset_info(dataset_name)
-        data_new = create_inductive_split_custom(dataset_name)
+        # Get dataset info and create inductive split with subset configuration
+        num_features, num_classes = get_dataset_info(dataset_name, subset_ratio=CUSTOM_SUBSET_RATIO, max_subgraphs=CUSTOM_MAX_SUBGRAPHS)
+        data_new = create_inductive_split_custom(dataset_name, subset_ratio=CUSTOM_SUBSET_RATIO, max_subgraphs=CUSTOM_MAX_SUBGRAPHS)
         
         print(f"Custom dataset loaded: {num_features} features, {num_classes} classes")
         
