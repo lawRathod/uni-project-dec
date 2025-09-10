@@ -19,4 +19,5 @@ rebMIGraph/**
 # Except these files
 !rebMIGraph/TSTS.py
 !rebMIGraph/bridge.py
+!rebMIGraph/resultfile**
 !rebMIGraph/rebmi_adapter.py

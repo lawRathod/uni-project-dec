@@ -1,0 +1,7 @@
+TargetModel Epoch: 300, Approx Train: 0.5653, Train: 0.5850, Test: 0.5243,marco: 0.5235,micro: 0.5243
+ShadowModel Epoch: 300, Approx Train: 0.7931, Train: 0.8035, Test: 0.5019,marco: 0.4640,micro: 0.5019
+Test accuracy with Target Train InOut: 0.500  AUROC: 0.500 precision: 0.273 recall 0.500 F1 score 0.335===> Attack Performance! 
+Test accuracy with Target Train In: 1.000  |=====| Test accuracy with Target Train Out: 0.001
+ ================ WhichRun: 1 || Data: Custom_Event || Model: SAGE || Time: 164.066 || rand_state: 4080405764 ================== 
+
+
