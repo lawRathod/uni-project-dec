@@ -179,13 +179,25 @@ def create_inductive_split_custom(dataset_name, normalize=True, subset_ratio=1.0
             deg_log = torch.log(total_degrees + 1)  # Log degree (handles degree=0)
             deg_sqrt = torch.sqrt(total_degrees)
             
-            # 4. Local clustering approximation (simplified)
-            # Count triangles by looking at 2-hop neighbors
-            adj_dense = torch.zeros(num_nodes, num_nodes)
-            adj_dense[edge_index[0], edge_index[1]] = 1
-            triangles = torch.matmul(adj_dense, adj_dense)
-            triangle_count = torch.diagonal(triangles).unsqueeze(1).float()
-            clustering_approx = triangle_count / (total_degrees * (total_degrees - 1) / 2 + 1e-8)
+            # 4. Local clustering approximation (memory-efficient)
+            # Skip expensive dense matrix operations for large graphs
+            if num_nodes > 10000:
+                # For large graphs, use degree-based clustering approximation
+                clustering_approx = norm_total_deg / (norm_total_deg + 1)  # Simple proxy
+                triangle_count = torch.zeros(num_nodes, 1)
+                print(f"Using fast clustering approximation for large graph ({num_nodes} nodes)")
+            else:
+                # For smaller graphs, compute actual triangles (but more efficiently)
+                try:
+                    from torch_geometric.utils import to_dense_adj
+                    adj_dense = to_dense_adj(edge_index, max_num_nodes=num_nodes)[0]
+                    triangles = torch.matmul(adj_dense, adj_dense) 
+                    triangle_count = torch.diagonal(triangles).unsqueeze(1).float()
+                    clustering_approx = triangle_count / (total_degrees * (total_degrees - 1) / 2 + 1e-8)
+                except Exception as e:
+                    print(f"Triangle computation failed, using approximation: {e}")
+                    clustering_approx = norm_total_deg / (norm_total_deg + 1)
+                    triangle_count = torch.zeros(num_nodes, 1)
             
             # 5. Ego-network features
             # Average degree of neighbors
@@ -201,12 +213,13 @@ def create_inductive_split_custom(dataset_name, normalize=True, subset_ratio=1.0
             if x.shape[1] > 0:
                 # Weighted feature aggregation by degree
                 degree_weighted_features = x * norm_total_deg
-                # Feature variance scaled by connectivity
-                feature_std = x.std(dim=1, keepdim=True)
+                # Feature variance scaled by connectivity  
+                feature_std = x.std(dim=1, keepdim=True) + 1e-8  # Add small epsilon for stability
                 connectivity_scaled_variance = feature_std * norm_total_deg
             else:
-                degree_weighted_features = torch.zeros_like(norm_total_deg)
-                connectivity_scaled_variance = torch.zeros_like(norm_total_deg)
+                # Handle case where no original features exist
+                degree_weighted_features = norm_total_deg  # Use degree as proxy
+                connectivity_scaled_variance = norm_total_deg
             
             # 7. Structural role indicators
             # Hub indicator (high degree nodes)
@@ -216,18 +229,27 @@ def create_inductive_split_custom(dataset_name, normalize=True, subset_ratio=1.0
             # Isolated indicator (degree 0 nodes)
             isolated_indicator = (total_degrees == 0).float()
             
-            # 8. Distance-based features (simplified)
+            # 8. Distance-based features (simplified and efficient)
             # Average distance to high-degree nodes (top 10%)
-            top_degree_threshold = torch.quantile(total_degrees, 0.9)
-            high_degree_mask = total_degrees >= top_degree_threshold
-            dist_to_hubs = torch.zeros(num_nodes, 1)
-            if high_degree_mask.sum() > 0:
-                # Simplified: use direct connections as proxy for distance
-                hub_connections = torch.zeros(num_nodes)
-                for hub_idx in torch.where(high_degree_mask)[0]:
-                    connected_to_hub = edge_index[1][edge_index[0] == hub_idx]
-                    hub_connections[connected_to_hub] += 1
-                dist_to_hubs = (1.0 / (hub_connections + 1)).unsqueeze(1)
+            if total_degrees.numel() > 0:
+                top_degree_threshold = torch.quantile(total_degrees.float(), 0.9)
+                high_degree_mask = total_degrees.squeeze() >= top_degree_threshold
+                dist_to_hubs = torch.zeros(num_nodes, 1)
+                
+                if high_degree_mask.sum() > 0:
+                    # Simplified: use direct connections as proxy for distance
+                    hub_connections = torch.zeros(num_nodes)
+                    hub_indices = torch.where(high_degree_mask)[0]
+                    
+                    # Vectorized computation for better performance
+                    for hub_idx in hub_indices:
+                        connected_to_hub = edge_index[1][edge_index[0] == hub_idx]
+                        if len(connected_to_hub) > 0:
+                            hub_connections[connected_to_hub] += 1
+                    
+                    dist_to_hubs = (1.0 / (hub_connections + 1)).unsqueeze(1)
+            else:
+                dist_to_hubs = torch.zeros(num_nodes, 1)
             
             # Combine all enhanced features
             enhanced_features = [
@@ -253,7 +275,17 @@ def create_inductive_split_custom(dataset_name, normalize=True, subset_ratio=1.0
             valid_features = [f for f in enhanced_features if f.numel() > 0]
             enhanced_x = torch.cat(valid_features, dim=1)
             
+            # Validate features for numerical stability
+            if torch.isnan(enhanced_x).any():
+                print("Warning: NaN values detected in enhanced features, replacing with zeros")
+                enhanced_x = torch.where(torch.isnan(enhanced_x), torch.zeros_like(enhanced_x), enhanced_x)
+            
+            if torch.isinf(enhanced_x).any():
+                print("Warning: Infinite values detected in enhanced features, clamping")
+                enhanced_x = torch.clamp(enhanced_x, -1e6, 1e6)
+            
             print(f"Enhanced features: {x.shape[1]} -> {enhanced_x.shape[1]} (+{enhanced_x.shape[1] - x.shape[1]} new features)")
+            print(f"Feature validation - Min: {enhanced_x.min():.4f}, Max: {enhanced_x.max():.4f}, Mean: {enhanced_x.mean():.4f}")
             
             return enhanced_x
         
@@ -277,19 +309,47 @@ def create_inductive_split_custom(dataset_name, normalize=True, subset_ratio=1.0
         # Use original dataset labels (no synthetic manipulation)
         print("Using original dataset labels with enhanced features...")
         
-        # Now normalize the enhanced features
-        if normalize:
-            mean = rebmi_data.target_x.mean(dim=0, keepdim=True)
-            std = rebmi_data.target_x.std(dim=0, keepdim=True)
-            std = torch.where(std == 0, torch.ones_like(std), std)
+        # Proper feature normalization
+        if normalize and rebmi_data.target_x is not None:
+            print("Applying feature normalization...")
             
-            rebmi_data.target_x = (rebmi_data.target_x - mean) / std
+            # Collect all available feature data to compute global statistics
+            all_features = []
+            if rebmi_data.target_x is not None:
+                all_features.append(rebmi_data.target_x)
             if rebmi_data.target_test_x is not None:
-                rebmi_data.target_test_x = (rebmi_data.target_test_x - mean) / std
+                all_features.append(rebmi_data.target_test_x)
             if rebmi_data.shadow_x is not None:
-                rebmi_data.shadow_x = (rebmi_data.shadow_x - mean) / std
+                all_features.append(rebmi_data.shadow_x)
             if rebmi_data.shadow_test_x is not None:
-                rebmi_data.shadow_test_x = (rebmi_data.shadow_test_x - mean) / std
+                all_features.append(rebmi_data.shadow_test_x)
+            
+            if all_features:
+                # Compute global statistics across all splits for consistent normalization
+                combined_features = torch.cat(all_features, dim=0)
+                mean = combined_features.mean(dim=0, keepdim=True)
+                std = combined_features.std(dim=0, keepdim=True)
+                
+                # Handle zero variance features (constant features)
+                std = torch.where(std < 1e-8, torch.ones_like(std), std)
+                
+                print(f"Normalization stats - Mean range: [{mean.min():.4f}, {mean.max():.4f}], Std range: [{std.min():.4f}, {std.max():.4f}]")
+                
+                # Apply normalization to all splits
+                rebmi_data.target_x = (rebmi_data.target_x - mean) / std
+                if rebmi_data.target_test_x is not None:
+                    rebmi_data.target_test_x = (rebmi_data.target_test_x - mean) / std
+                if rebmi_data.shadow_x is not None:
+                    rebmi_data.shadow_x = (rebmi_data.shadow_x - mean) / std
+                if rebmi_data.shadow_test_x is not None:
+                    rebmi_data.shadow_test_x = (rebmi_data.shadow_test_x - mean) / std
+                
+                # Verify normalization worked
+                final_mean = rebmi_data.target_x.mean(dim=0)
+                final_std = rebmi_data.target_x.std(dim=0)
+                print(f"Post-normalization verification - Target mean: {final_mean.abs().max():.6f}, std: {final_std.mean():.4f}")
+            else:
+                print("Warning: No features available for normalization!")
     
     # Return both data and metadata to avoid duplicate computation
     num_features = rebmi_data.target_x.shape[1] if rebmi_data.target_x is not None else 0
