@@ -40,8 +40,6 @@ python TSTS.py
 
 - GCN (Graph Convolutional Network)
 - GAT (Graph Attention Network)  
-- SAGE (GraphSAGE)
-- SGC (Simple Graph Convolution)
 
 ## Supported Datasets
 
