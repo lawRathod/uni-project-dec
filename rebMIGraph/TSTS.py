@@ -76,7 +76,7 @@ for which_run in range(1, num_of_runs):
     # Custom dataset subset configuration for performance improvement
     # Choose ONE of the following methods:
     # Method 1: Use ratio-based subset (recommended for consistency across datasets)
-    CUSTOM_SUBSET_RATIO = 0.3  # Use 30% of subgraphs (0.1=10%, 0.5=50%, 1.0=100%/full data)
+    CUSTOM_SUBSET_RATIO = 0.1  # Use 30% of subgraphs (0.1=10%, 0.5=50%, 1.0=100%/full data)
     # Method 2: Use explicit maximum number (overrides ratio if set)
     CUSTOM_MAX_SUBGRAPHS = None  # e.g., 10 to use max 10 subgraphs per split, None to use ratio
     
@@ -256,9 +256,19 @@ for which_run in range(1, num_of_runs):
         
         dataset = MockDataset(num_features, num_classes)
         
-        # Set variables needed for NeighborSampler
-        num_test_Target = data_new.target_x.shape[0] if data_new.target_x is not None else 0
-        num_test_Shadow = data_new.shadow_x.shape[0] if data_new.shadow_x is not None else 0
+        # Set variables needed for NeighborSampler (use actual node counts from each split)
+        num_train_Target = data_new.target_x.shape[0] if data_new.target_x is not None else 0
+        num_test_Target = data_new.target_test_x.shape[0] if data_new.target_test_x is not None else 0
+        num_train_Shadow = data_new.shadow_x.shape[0] if data_new.shadow_x is not None else 0
+        num_test_Shadow = data_new.shadow_test_x.shape[0] if data_new.shadow_test_x is not None else 0
+        
+        # Validate edge indices don't exceed node counts
+        if data_new.target_edge_index is not None and data_new.target_edge_index.numel() > 0:
+            max_node_idx = data_new.target_edge_index.max().item()
+            if max_node_idx >= num_train_Target:
+                print(f"Warning: Target train edge_index max ({max_node_idx}) >= num_nodes ({num_train_Target})")
+        
+        print(f"Custom dataset node counts - Train: Target={num_train_Target}, Shadow={num_train_Shadow}, Test: Target={num_test_Target}, Shadow={num_test_Shadow}")
         
         # Skip the normal dataset loading and inductive split creation
         custom_dataset = True
@@ -799,23 +809,46 @@ for which_run in range(1, num_of_runs):
 
     print(dataset.num_classes)
 
-    bool_tensor = torch.ones(num_test_Target, dtype=torch.bool)
-    # print("bool_tensor", bool_tensor) #using this increases attack precision to 0.604 instead of 0.590
-
-    target_train_loader = NeighborSampler(data_new.target_edge_index, node_idx=bool_tensor,
-                                   sizes=NEIGHBOR_SAMPLE_SIZES, num_nodes = num_test_Target, batch_size=BATCH_SIZE_NEIGHBOR, shuffle=False) #solution: node_idx to none since we wanna consider all nodes in the subgraph. Also num_test_Target is used cos its the total of nodes
-
-    target_test_loader = NeighborSampler(data_new.target_test_edge_index, node_idx=bool_tensor,
-                                   sizes=NEIGHBOR_SAMPLE_SIZES, num_nodes = num_test_Target, batch_size=BATCH_SIZE_NEIGHBOR, shuffle=False) #solution: node_idx to none since we wanna consider all nodes in the subgraph. Also num_test_Target is used cos its the total of nodes
-    print("data_new.target_edge_index", data_new.target_edge_index.shape)
-    print("data_new.target_x", data_new.target_x.shape)
-    # print("data_new.target_train_mask", data_new.target_train_mask)
-
-    shadow_train_loader = NeighborSampler(data_new.shadow_edge_index, node_idx=bool_tensor,
-                                   sizes=NEIGHBOR_SAMPLE_SIZES, num_nodes = num_test_Shadow, batch_size=BATCH_SIZE_NEIGHBOR, shuffle=False)
-
-    shadow_test_loader = NeighborSampler(data_new.shadow_test_edge_index, node_idx=bool_tensor,
-                                   sizes=NEIGHBOR_SAMPLE_SIZES, num_nodes = num_test_Shadow, batch_size=BATCH_SIZE_NEIGHBOR, shuffle=False)
+    # For custom datasets, create bool tensors with correct sizes for each split
+    if data_type.startswith("Custom_"):
+        # Each loader needs its own bool_tensor with the correct size
+        target_train_bool = torch.ones(num_train_Target, dtype=torch.bool)
+        target_test_bool = torch.ones(num_test_Target, dtype=torch.bool)
+        shadow_train_bool = torch.ones(num_train_Shadow, dtype=torch.bool)
+        shadow_test_bool = torch.ones(num_test_Shadow, dtype=torch.bool)
+        
+        target_train_loader = NeighborSampler(data_new.target_edge_index, node_idx=target_train_bool,
+                                       sizes=NEIGHBOR_SAMPLE_SIZES, num_nodes=num_train_Target, batch_size=BATCH_SIZE_NEIGHBOR, shuffle=False)
+        
+        target_test_loader = NeighborSampler(data_new.target_test_edge_index, node_idx=target_test_bool,
+                                       sizes=NEIGHBOR_SAMPLE_SIZES, num_nodes=num_test_Target, batch_size=BATCH_SIZE_NEIGHBOR, shuffle=False)
+        
+        shadow_train_loader = NeighborSampler(data_new.shadow_edge_index, node_idx=shadow_train_bool,
+                                       sizes=NEIGHBOR_SAMPLE_SIZES, num_nodes=num_train_Shadow, batch_size=BATCH_SIZE_NEIGHBOR, shuffle=False)
+        
+        shadow_test_loader = NeighborSampler(data_new.shadow_test_edge_index, node_idx=shadow_test_bool,
+                                       sizes=NEIGHBOR_SAMPLE_SIZES, num_nodes=num_test_Shadow, batch_size=BATCH_SIZE_NEIGHBOR, shuffle=False)
+        
+        print(f"Custom dataset loaders initialized:")
+        print(f"  Target train: {num_train_Target} nodes, edge_index shape: {data_new.target_edge_index.shape}")
+        print(f"  Target test: {num_test_Target} nodes, edge_index shape: {data_new.target_test_edge_index.shape if data_new.target_test_edge_index is not None else 'None'}")
+        print(f"  Shadow train: {num_train_Shadow} nodes, edge_index shape: {data_new.shadow_edge_index.shape if data_new.shadow_edge_index is not None else 'None'}")
+        print(f"  Shadow test: {num_test_Shadow} nodes, edge_index shape: {data_new.shadow_test_edge_index.shape if data_new.shadow_test_edge_index is not None else 'None'}")
+    else:
+        # Original code for non-custom datasets
+        bool_tensor = torch.ones(num_test_Target, dtype=torch.bool)
+        
+        target_train_loader = NeighborSampler(data_new.target_edge_index, node_idx=bool_tensor,
+                                       sizes=NEIGHBOR_SAMPLE_SIZES, num_nodes=num_test_Target, batch_size=BATCH_SIZE_NEIGHBOR, shuffle=False)
+        
+        target_test_loader = NeighborSampler(data_new.target_test_edge_index, node_idx=bool_tensor,
+                                       sizes=NEIGHBOR_SAMPLE_SIZES, num_nodes=num_test_Target, batch_size=BATCH_SIZE_NEIGHBOR, shuffle=False)
+        
+        shadow_train_loader = NeighborSampler(data_new.shadow_edge_index, node_idx=bool_tensor,
+                                       sizes=NEIGHBOR_SAMPLE_SIZES, num_nodes=num_test_Shadow, batch_size=BATCH_SIZE_NEIGHBOR, shuffle=False)
+        
+        shadow_test_loader = NeighborSampler(data_new.shadow_test_edge_index, node_idx=bool_tensor,
+                                       sizes=NEIGHBOR_SAMPLE_SIZES, num_nodes=num_test_Shadow, batch_size=BATCH_SIZE_NEIGHBOR, shuffle=False)
 
 
 
