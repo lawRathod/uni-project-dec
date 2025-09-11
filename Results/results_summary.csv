@@ -1,0 +1,25 @@
+Experiment,Model,Dataset,Attack_Accuracy,AUROC,Runs
+Synthetic,GCN,Event,0.497 ± 0.003,0.497,5
+Synthetic,GCN,Twitch,0.495 ± 0.004,0.495,5
+Synthetic,GAT,Event,0.507 ± 0.038,0.507,5
+Synthetic,GAT,Twitch,0.491 ± 0.008,0.491,5
+Synthetic,SAGE,Event,0.509 ± 0.004,0.509,5
+Synthetic,SAGE,Twitch,0.501 ± 0.005,0.501,5
+Synthetic,SGC,Event,0.649 ± 0.021,0.649,5
+Synthetic,SGC,Twitch,0.522 ± 0.005,0.521,5
+Nosynth,GCN,Event,0.614,0.613,1
+Nosynth,GCN,Twitch,0.485,0.486,1
+Nosynth,GAT,Event,0.607,0.608,1
+Nosynth,GAT,Twitch,0.494,0.494,1
+Nosynth,SAGE,Event,0.522,0.522,1
+Nosynth,SAGE,Twitch,0.486,0.485,1
+Nosynth,SGC,Event,0.670,0.670,1
+Nosynth,SGC,Twitch,0.483,0.484,1
+Baseline,GCN,CiteSeer,0.834,0.834,1
+Baseline,GCN,Cora,0.705,0.705,1
+Baseline,GAT,CiteSeer,0.772,0.772,1
+Baseline,GAT,Cora,0.659,0.659,1
+Baseline,SAGE,CiteSeer,0.889,0.889,1
+Baseline,SAGE,Cora,0.827,0.827,1
+Baseline,SGC,CiteSeer,0.761,0.762,1
+Baseline,SGC,Cora,0.647,0.647,1
