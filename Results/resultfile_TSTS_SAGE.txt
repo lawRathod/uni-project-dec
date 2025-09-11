@@ -1,0 +1,70 @@
+TargetModel Epoch: 300, Approx Train: 0.6783, Train: 0.6752, Test: 0.6775,marco: 0.6668,micro: 0.6775
+ShadowModel Epoch: 300, Approx Train: 0.7277, Train: 0.7410, Test: 0.6843,marco: 0.6828,micro: 0.6843
+Test accuracy with Target Train InOut: 0.508  AUROC: 0.508 precision: 0.511 recall 0.508 F1 score 0.502===> Attack Performance! 
+Test accuracy with Target Train In: 0.399  |=====| Test accuracy with Target Train Out: 0.619
+ ================ WhichRun: 1 || Data: Custom_Twitch || Model: SAGE || Time: 505.776 || rand_state: 2426130010 ================== 
+
+
+TargetModel Epoch: 300, Approx Train: 0.6819, Train: 0.6848, Test: 0.6835,marco: 0.6793,micro: 0.6835
+ShadowModel Epoch: 300, Approx Train: 0.7123, Train: 0.7407, Test: 0.6692,marco: 0.6632,micro: 0.6692
+Test accuracy with Target Train InOut: 0.499  AUROC: 0.500 precision: 0.496 recall 0.499 F1 score 0.376===> Attack Performance! 
+Test accuracy with Target Train In: 0.055  |=====| Test accuracy with Target Train Out: 0.943
+ ================ WhichRun: 2 || Data: Custom_Twitch || Model: SAGE || Time: 502.314 || rand_state: 1553741730 ================== 
+
+
+TargetModel Epoch: 300, Approx Train: 0.6743, Train: 0.6681, Test: 0.6562,marco: 0.6436,micro: 0.6562
+ShadowModel Epoch: 300, Approx Train: 0.7250, Train: 0.7543, Test: 0.6817,marco: 0.6761,micro: 0.6817
+Test accuracy with Target Train InOut: 0.495  AUROC: 0.494 precision: 0.489 recall 0.495 F1 score 0.404===> Attack Performance! 
+Test accuracy with Target Train In: 0.105  |=====| Test accuracy with Target Train Out: 0.885
+ ================ WhichRun: 3 || Data: Custom_Twitch || Model: SAGE || Time: 503.982 || rand_state: 2003537841 ================== 
+
+
+TargetModel Epoch: 300, Approx Train: 0.6699, Train: 0.6711, Test: 0.6706,marco: 0.6682,micro: 0.6706
+ShadowModel Epoch: 300, Approx Train: 0.7113, Train: 0.7297, Test: 0.6785,marco: 0.6702,micro: 0.6785
+Test accuracy with Target Train InOut: 0.505  AUROC: 0.505 precision: 0.508 recall 0.505 F1 score 0.500===> Attack Performance! 
+Test accuracy with Target Train In: 0.408  |=====| Test accuracy with Target Train Out: 0.602
+ ================ WhichRun: 4 || Data: Custom_Twitch || Model: SAGE || Time: 507.719 || rand_state: 3304225627 ================== 
+
+
+TargetModel Epoch: 300, Approx Train: 0.6748, Train: 0.6980, Test: 0.6900,marco: 0.6897,micro: 0.6900
+ShadowModel Epoch: 300, Approx Train: 0.7200, Train: 0.7433, Test: 0.6763,marco: 0.6712,micro: 0.6763
+Test accuracy with Target Train InOut: 0.498  AUROC: 0.498 precision: 0.501 recall 0.498 F1 score 0.486===> Attack Performance! 
+Test accuracy with Target Train In: 0.646  |=====| Test accuracy with Target Train Out: 0.349
+ ================ WhichRun: 5 || Data: Custom_Twitch || Model: SAGE || Time: 503.308 || rand_state: 295594791 ================== 
+
+
+TargetModel Epoch: 300, Approx Train: 0.5377, Train: 0.5183, Test: 0.5100,marco: 0.4935,micro: 0.5100
+ShadowModel Epoch: 300, Approx Train: 0.6667, Train: 0.6757, Test: 0.5904,marco: 0.5837,micro: 0.5904
+Test accuracy with Target Train InOut: 0.515  AUROC: 0.515 precision: 0.535 recall 0.515 F1 score 0.437===> Attack Performance! 
+Test accuracy with Target Train In: 0.143  |=====| Test accuracy with Target Train Out: 0.887
+ ================ WhichRun: 1 || Data: Custom_Event || Model: SAGE || Time: 463.761 || rand_state: 136847107 ================== 
+
+
+TargetModel Epoch: 300, Approx Train: 0.5515, Train: 0.5392, Test: 0.5154,marco: 0.5116,micro: 0.5154
+ShadowModel Epoch: 300, Approx Train: 0.6910, Train: 0.6813, Test: 0.5862,marco: 0.5839,micro: 0.5862
+Test accuracy with Target Train InOut: 0.506  AUROC: 0.504 precision: 0.509 recall 0.506 F1 score 0.479===> Attack Performance! 
+Test accuracy with Target Train In: 0.729  |=====| Test accuracy with Target Train Out: 0.282
+ ================ WhichRun: 2 || Data: Custom_Event || Model: SAGE || Time: 462.611 || rand_state: 2011444749 ================== 
+
+
+TargetModel Epoch: 300, Approx Train: 0.5557, Train: 0.5737, Test: 0.5498,marco: 0.5177,micro: 0.5498
+ShadowModel Epoch: 300, Approx Train: 0.6797, Train: 0.6830, Test: 0.5792,marco: 0.5760,micro: 0.5792
+Test accuracy with Target Train InOut: 0.510  AUROC: 0.510 precision: 0.519 recall 0.510 F1 score 0.467===> Attack Performance! 
+Test accuracy with Target Train In: 0.794  |=====| Test accuracy with Target Train Out: 0.225
+ ================ WhichRun: 3 || Data: Custom_Event || Model: SAGE || Time: 483.49 || rand_state: 3406968278 ================== 
+
+
+TargetModel Epoch: 300, Approx Train: 0.5497, Train: 0.5557, Test: 0.5234,marco: 0.5147,micro: 0.5234
+ShadowModel Epoch: 300, Approx Train: 0.6827, Train: 0.6890, Test: 0.5856,marco: 0.5759,micro: 0.5856
+Test accuracy with Target Train InOut: 0.509  AUROC: 0.508 precision: 0.529 recall 0.509 F1 score 0.416===> Attack Performance! 
+Test accuracy with Target Train In: 0.908  |=====| Test accuracy with Target Train Out: 0.109
+ ================ WhichRun: 4 || Data: Custom_Event || Model: SAGE || Time: 472.587 || rand_state: 1969707595 ================== 
+
+
+TargetModel Epoch: 300, Approx Train: 0.5477, Train: 0.5381, Test: 0.5077,marco: 0.5059,micro: 0.5077
+ShadowModel Epoch: 300, Approx Train: 0.6343, Train: 0.6537, Test: 0.5808,marco: 0.5633,micro: 0.5808
+Test accuracy with Target Train InOut: 0.507  AUROC: 0.506 precision: 0.512 recall 0.507 F1 score 0.483===> Attack Performance! 
+Test accuracy with Target Train In: 0.724  |=====| Test accuracy with Target Train Out: 0.289
+ ================ WhichRun: 5 || Data: Custom_Event || Model: SAGE || Time: 461.429 || rand_state: 1496514754 ================== 
+
+

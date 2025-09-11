@@ -1,0 +1,14 @@
+TargetModel Epoch: 300, Approx Train: 0.5703, Train: 0.5699, Test: 0.5394,marco: 0.4467,micro: 0.5394
+ShadowModel Epoch: 300, Approx Train: 0.5783, Train: 0.5793, Test: 0.5590,marco: 0.4724,micro: 0.5590
+Test accuracy with Target Train InOut: 0.670  AUROC: 0.670 precision: 0.678 recall 0.670 F1 score 0.667===> Attack Performance! 
+Test accuracy with Target Train In: 0.752  |=====| Test accuracy with Target Train Out: 0.589
+ ================ WhichRun: 1 || Data: Custom_Event || Model: SGC || Time: 90.721 || rand_state: 1563748398 ================== 
+
+
+TargetModel Epoch: 300, Approx Train: 0.5948, Train: 0.5931, Test: 0.5855,marco: 0.5436,micro: 0.5855
+ShadowModel Epoch: 300, Approx Train: 0.5940, Train: 0.5953, Test: 0.5814,marco: 0.5053,micro: 0.5814
+Test accuracy with Target Train InOut: 0.483  AUROC: 0.484 precision: 0.484 recall 0.483 F1 score 0.469===> Attack Performance! 
+Test accuracy with Target Train In: 0.648  |=====| Test accuracy with Target Train Out: 0.319
+ ================ WhichRun: 1 || Data: Custom_Twitch || Model: SGC || Time: 106.491 || rand_state: 1648297874 ================== 
+
+

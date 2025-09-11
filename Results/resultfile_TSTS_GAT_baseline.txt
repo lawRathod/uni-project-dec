@@ -1,0 +1,14 @@
+TargetModel Epoch: 300, Approx Train: 0.7413, Train: 0.7476, Test: 0.5619,marco: 0.5404,micro: 0.5619
+ShadowModel Epoch: 300, Approx Train: 0.7984, Train: 0.8079, Test: 0.5524,marco: 0.5515,micro: 0.5524
+Test accuracy with Target Train InOut: 0.659  AUROC: 0.659 precision: 0.676 recall 0.659 F1 score 0.652===> Attack Performance! 
+Test accuracy with Target Train In: 0.524  |=====| Test accuracy with Target Train Out: 0.795
+ ================ WhichRun: 1 || Data: Cora || Model: GAT || Time: 13.937 || rand_state: 1557043778 ================== 
+
+
+TargetModel Epoch: 300, Approx Train: 0.8600, Train: 0.8600, Test: 0.5933,marco: 0.5875,micro: 0.5933
+ShadowModel Epoch: 300, Approx Train: 0.8483, Train: 0.8450, Test: 0.6017,marco: 0.5782,micro: 0.6017
+Test accuracy with Target Train InOut: 0.772  AUROC: 0.772 precision: 0.778 recall 0.772 F1 score 0.772===> Attack Performance! 
+Test accuracy with Target Train In: 0.830  |=====| Test accuracy with Target Train Out: 0.722
+ ================ WhichRun: 1 || Data: CiteSeer || Model: GAT || Time: 14.185 || rand_state: 4225915243 ================== 
+
+

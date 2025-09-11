@@ -1,0 +1,14 @@
+TargetModel Epoch: 300, Approx Train: 0.7111, Train: 0.7111, Test: 0.5698,marco: 0.5632,micro: 0.5698
+ShadowModel Epoch: 300, Approx Train: 0.7175, Train: 0.7175, Test: 0.5730,marco: 0.5701,micro: 0.5730
+Test accuracy with Target Train InOut: 0.647  AUROC: 0.647 precision: 0.672 recall 0.647 F1 score 0.637===> Attack Performance! 
+Test accuracy with Target Train In: 0.479  |=====| Test accuracy with Target Train Out: 0.816
+ ================ WhichRun: 1 || Data: Cora || Model: SGC || Time: 21.133 || rand_state: 679430614 ================== 
+
+
+TargetModel Epoch: 300, Approx Train: 0.8400, Train: 0.8400, Test: 0.6483,marco: 0.6359,micro: 0.6483
+ShadowModel Epoch: 300, Approx Train: 0.8583, Train: 0.8583, Test: 0.6300,marco: 0.6066,micro: 0.6300
+Test accuracy with Target Train InOut: 0.761  AUROC: 0.762 precision: 0.772 recall 0.761 F1 score 0.760===> Attack Performance! 
+Test accuracy with Target Train In: 0.690  |=====| Test accuracy with Target Train Out: 0.845
+ ================ WhichRun: 1 || Data: CiteSeer || Model: SGC || Time: 25.538 || rand_state: 4286685697 ================== 
+
+

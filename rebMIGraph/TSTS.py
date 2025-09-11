@@ -155,7 +155,7 @@ for which_run in range(1, num_of_runs):
     SAGE_EPOCHS_CORA_CITESEER = 16   # 301 #16 for CiteSeer n Cora
     SAGE_EPOCHS_PUBMED = 101         # 101 for PubMed
     SAGE_EPOCHS_FLICKR_REDDIT = 301  # 301 for Flickr n Reddit
-    DEFAULT_EPOCHS = 301             # Default for non-SAGE models
+    DEFAULT_EPOCHS = 31             # Default for non-SAGE models
     
 
     save_shadow_OutTrain = "posteriorsShadowOut_" + mode + "_" + data_type + "_" + model_type + ".txt"
