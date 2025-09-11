@@ -69,14 +69,14 @@ for which_run in range(1, num_of_runs):
     '''
     
     # =========================== MODEL AND DATA CONFIGURATION ===========================
-    model_type = "SGC"  # GCN, GAT, SAGE, SGC
-    data_type = "Custom_Twitch"  # CiteSeer, Cora, PubMed, Flickr, Reddit, Custom_Twitch, Custom_Event
+    model_type = "GAT"  # GCN, GAT, SAGE, SGC
+    data_type = "Custom_Event"  # CiteSeer, Cora, PubMed, Flickr, Reddit, Custom_Twitch, Custom_Event
     mode = "TSTS"  # train on subgraph, test on subgraph
     
     # Custom dataset subset configuration for performance improvement
     # Choose ONE of the following methods:
     # Method 1: Use ratio-based subset (recommended for consistency across datasets)
-    CUSTOM_SUBSET_RATIO = 0.1  # Use 30% of subgraphs (0.1=10%, 0.5=50%, 1.0=100%/full data)
+    CUSTOM_SUBSET_RATIO = 0.2  # Use 30% of subgraphs (0.1=10%, 0.5=50%, 1.0=100%/full data)
     # Method 2: Use explicit maximum number (overrides ratio if set)
     CUSTOM_MAX_SUBGRAPHS = None  # e.g., 10 to use max 10 subgraphs per split, None to use ratio
     
@@ -134,12 +134,13 @@ for which_run in range(1, num_of_runs):
     
     if USE_IMPROVED_ATTACK:
         # Optimized hyperparameters for better attack performance
-        ATTACK_LR = 0.001        # Lower LR for more stable training
+        ATTACK_LR = 0.0005       # Even lower LR for more stable training
         ATTACK_EPOCHS = 150      # More epochs for better convergence
         ATTACK_BATCH_SIZE = 64   # Larger batch for stability
         ATTACK_TEST_BATCH_SIZE = 128
         ATTACK_DROPOUT = 0.3     # Dropout to prevent overfitting
         ATTACK_WEIGHT_DECAY = 1e-4  # L2 regularization
+        TEMPERATURE = 1.5        # Temperature scaling for calibrated posteriors (reduced from 2.0)
     else:
         # Original hyperparameters
         ATTACK_LR = 0.01         
@@ -148,6 +149,7 @@ for which_run in range(1, num_of_runs):
         ATTACK_TEST_BATCH_SIZE = 64
         ATTACK_DROPOUT = 0.0
         ATTACK_WEIGHT_DECAY = 0
+        TEMPERATURE = 1.0        # No temperature scaling
     
     # Model training epochs
     SAGE_EPOCHS_CORA_CITESEER = 16   # 301 #16 for CiteSeer n Cora
@@ -974,6 +976,11 @@ for which_run in range(1, num_of_runs):
                 # print("out traaaaain", out.shape)
                 loss = F.nll_loss(out, data_new.target_y[n_id[:batch_size]])
                 loss.backward()
+                
+                # Gradient clipping to prevent extreme updates
+                if USE_IMPROVED_ATTACK:
+                    torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
+                
                 optimizer.step()
 
                 total_loss += float(loss)
@@ -995,6 +1002,11 @@ for which_run in range(1, num_of_runs):
                 # print("out traaaaain shadow", out.shape)
                 loss = F.nll_loss(out, data_new.shadow_y[n_id[:batch_size]])
                 loss.backward()
+                
+                # Gradient clipping to prevent extreme updates
+                if USE_IMPROVED_ATTACK:
+                    torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
+                
                 optimizer.step()
 
                 total_loss += float(loss)
@@ -1035,7 +1047,9 @@ for which_run in range(1, num_of_runs):
             pred_Intrain = pred.max(1)[1].to(device)
             # Actual probabilities
             # pred_Intrain_ps = torch.exp(model(data_new.target_x,data_new.target_edge_index)[data_new.target_train_mask])
-            pred_Intrain_ps = torch.exp(pred)
+            # Apply temperature scaling for better calibration
+            pred_scaled = pred / TEMPERATURE if USE_IMPROVED_ATTACK else pred
+            pred_Intrain_ps = torch.exp(pred_scaled)
             np.savetxt(save_target_InTrain, pred_Intrain_ps.cpu().detach().numpy())
 
             # np.save(save_target_InTrain_nodes_neigbors, nodes_and_neighbors)  # Skip for now due to inhomogeneous shape
@@ -1052,7 +1066,9 @@ for which_run in range(1, num_of_runs):
 
             pred_out = preds.max(1)[1].to(device)
             # pred_out_ps = torch.exp(model(data_new.all_x, data_new.all_edge_index)[data_new.target_test_mask])
-            pred_out_ps = torch.exp(preds)
+            # Apply temperature scaling for better calibration
+            preds_scaled = preds / TEMPERATURE if USE_IMPROVED_ATTACK else preds
+            pred_out_ps = torch.exp(preds_scaled)
 
             np.savetxt(save_target_OutTrain, pred_out_ps.cpu().detach().numpy())
 
@@ -1102,7 +1118,9 @@ for which_run in range(1, num_of_runs):
             pred_Intrain = pred.max(1)[1].to(device)
             # Actual probabilities
             # pred_Intrain_ps = torch.exp(model(data_new.shadow_x, data_new.shadow_edge_index)[data_new.shadow_train_mask])
-            pred_Intrain_ps = torch.exp(pred)
+            # Apply temperature scaling for better calibration
+            pred_scaled = pred / TEMPERATURE if USE_IMPROVED_ATTACK else pred
+            pred_Intrain_ps = torch.exp(pred_scaled)
             np.savetxt(save_shadow_InTrain, pred_Intrain_ps.cpu().detach().numpy())
 
             '''# OutTrain for shadow'''
@@ -1112,7 +1130,9 @@ for which_run in range(1, num_of_runs):
 
             pred_out = preds.max(1)[1].to(device)
             # pred_out_ps = torch.exp(model(data_new.all_x, data_new.all_edge_index)[data_new.shadow_test_mask])
-            pred_out_ps = torch.exp(preds)
+            # Apply temperature scaling for better calibration
+            preds_scaled = preds / TEMPERATURE if USE_IMPROVED_ATTACK else preds
+            pred_out_ps = torch.exp(preds_scaled)
             np.savetxt(save_shadow_OutTrain, pred_out_ps.cpu().detach().numpy())
 
             pred_labels = pred_out.tolist()
@@ -1539,6 +1559,10 @@ for which_run in range(1, num_of_runs):
 
     print("X_attack_InTrain", X_attack_InTrain.shape)
     print("X_attack_OutTrain", X_attack_OutTrain.shape)
+    
+    # Check class distribution in attack training data
+    print(f"Attack training data - Class 1 (members): {len(y_attack_InTrain)}, Class 0 (non-members): {len(y_attack_OutTrain)}")
+    print(f"Class ratio: {len(y_attack_InTrain) / (len(y_attack_InTrain) + len(y_attack_OutTrain)):.2f} members")
 
     # For in train data (target)
     X_InTrain = target_data_for_testing_Intrain.drop(["labels", "nodeID"], axis=1)
@@ -1796,6 +1820,13 @@ for which_run in range(1, num_of_runs):
         final_train_loss = 0
         train_losses, test_losses = [], []
         posteriors = []
+        
+        # Early stopping parameters
+        best_test_loss = float('inf')
+        patience = 15 if USE_IMPROVED_ATTACK else 10
+        patience_counter = 0
+        best_model_state = None
+        
         for e in range(epochs):
             running_loss = 0
             train_accuracy = 0
@@ -1833,6 +1864,11 @@ for which_run in range(1, num_of_runs):
                 train_accuracy += torch.mean(equals.type(torch.FloatTensor))
 
                 loss.backward()
+                
+                # Gradient clipping to prevent extreme updates
+                if USE_IMPROVED_ATTACK:
+                    torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
+                
                 optimizer.step()
 
                 running_loss += loss.item()
@@ -1891,6 +1927,19 @@ for which_run in range(1, num_of_runs):
                 # Step the scheduler if provided
                 if scheduler is not None:
                     scheduler.step(test_loss)
+                
+                # Early stopping logic
+                if USE_IMPROVED_ATTACK:
+                    if test_loss < best_test_loss:
+                        best_test_loss = test_loss
+                        best_model_state = model.state_dict().copy()
+                        patience_counter = 0
+                    else:
+                        patience_counter += 1
+                        if patience_counter >= patience:
+                            print(f"Early stopping at epoch {e+1} with best test loss: {best_test_loss:.5f}")
+                            model.load_state_dict(best_model_state)
+                            break
 
         # # plot train and test loss
         # plt.show()
@@ -2042,7 +2091,27 @@ for which_run in range(1, num_of_runs):
 
     '''Initialization / params for attack model'''
 
-    criterion = nn.CrossEntropyLoss()  # nn.NLLLoss() # cross entropy loss
+    # Use label smoothing instead of class weighting for better generalization
+    class LabelSmoothingCrossEntropy(nn.Module):
+        def __init__(self, smoothing=0.1):
+            super().__init__()
+            self.smoothing = smoothing
+            
+        def forward(self, pred, target):
+            n_classes = pred.size(-1)
+            log_preds = F.log_softmax(pred, dim=-1)
+            loss = -log_preds.gather(dim=-1, index=target.unsqueeze(1))
+            loss = loss.squeeze(1)
+            smooth_loss = -log_preds.mean(dim=-1)
+            loss = (1.0 - self.smoothing) * loss + self.smoothing * smooth_loss
+            return loss.mean()
+    
+    # Use label smoothing to prevent overconfident predictions
+    if USE_IMPROVED_ATTACK:
+        criterion = LabelSmoothingCrossEntropy(smoothing=0.1)
+        print("Using label smoothing with smoothing=0.1")
+    else:
+        criterion = nn.CrossEntropyLoss()  # Standard loss for original model
 
     # Enhanced optimizer with weight decay for regularization
     optimizer = torch.optim.Adam(attack_model.parameters(), lr=ATTACK_LR, weight_decay=ATTACK_WEIGHT_DECAY)
