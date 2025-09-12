@@ -15,12 +15,19 @@ from typing import Dict, List, Tuple, Any
 import warnings
 warnings.filterwarnings('ignore')
 
-# Set style for better plots
+# Set professional style and color palette
 plt.style.use('seaborn-v0_8')
-sns.set_palette("husl")
+plt.rcParams['font.size'] = 10
+plt.rcParams['axes.titlesize'] = 12
+plt.rcParams['axes.labelsize'] = 11
+plt.rcParams['legend.fontsize'] = 10
+
+# Professional color palette - Blues and earth tones
+professional_colors = ['#2E5C8A', '#4A90B8', '#7BB3D1', '#A8CDE7', '#E17A47', '#C65D32', '#8B4513', '#D2691E']
+sns.set_palette(professional_colors)
 
 class ResultsAnalyzer:
-    def __init__(self, results_dir: str = "."):
+    def __init__(self, results_dir: str = "raw_text_files"):
         self.results_dir = Path(results_dir)
         self.data = {}
         self.summary_stats = {}
@@ -107,7 +114,7 @@ class ResultsAnalyzer:
         """Load and parse all result files"""
         print("Loading results from all files...")
         
-        for filepath in self.results_dir.glob("resultfile_*.txt"):
+        for filepath in self.results_dir.glob("raw_text_files/resultfile_*.txt"):
             filename = filepath.stem
             print(f"Processing {filename}...")
             
@@ -221,11 +228,13 @@ class ResultsAnalyzer:
         x = np.arange(len(models))
         width = 0.35
         
-        # Twitch dataset
+        # Twitch dataset - using professional colors
         bars1 = ax1.bar(x - width/2, twitch_means, width, yerr=twitch_stds, 
-                       label='Custom_Twitch', alpha=0.8, capsize=5)
+                       label='Custom_Twitch', color=professional_colors[0], alpha=0.8, 
+                       capsize=5, edgecolor='white', linewidth=1)
         bars2 = ax1.bar(x + width/2, event_means, width, yerr=event_stds,
-                       label='Custom_Event', alpha=0.8, capsize=5)
+                       label='Custom_Event', color=professional_colors[4], alpha=0.8, 
+                       capsize=5, edgecolor='white', linewidth=1)
         
         ax1.set_xlabel('GNN Architecture')
         ax1.set_ylabel('Attack Accuracy')
@@ -233,7 +242,7 @@ class ResultsAnalyzer:
         ax1.set_xticks(x)
         ax1.set_xticklabels(models)
         ax1.legend()
-        ax1.axhline(y=0.5, color='red', linestyle='--', alpha=0.7, label='Random Guess')
+        ax1.axhline(y=0.5, color='#8B0000', linestyle='--', alpha=0.6, label='Random Guess', linewidth=2)
         ax1.set_ylim(0, 0.7)
         ax1.grid(True, alpha=0.3)
         
@@ -277,9 +286,11 @@ class ResultsAnalyzer:
                 event_auroc.append(0)
         
         bars3 = ax2.bar(x - width/2, twitch_auroc, width, 
-                       label='Custom_Twitch', alpha=0.8)
+                       label='Custom_Twitch', color=professional_colors[0], alpha=0.8,
+                       edgecolor='white', linewidth=1)
         bars4 = ax2.bar(x + width/2, event_auroc, width,
-                       label='Custom_Event', alpha=0.8)
+                       label='Custom_Event', color=professional_colors[4], alpha=0.8,
+                       edgecolor='white', linewidth=1)
         
         ax2.set_xlabel('GNN Architecture')
         ax2.set_ylabel('Attack AUROC')
@@ -287,12 +298,12 @@ class ResultsAnalyzer:
         ax2.set_xticks(x)
         ax2.set_xticklabels(models)
         ax2.legend()
-        ax2.axhline(y=0.5, color='red', linestyle='--', alpha=0.7, label='Random Guess')
+        ax2.axhline(y=0.5, color='#8B0000', linestyle='--', alpha=0.6, label='Random Guess', linewidth=2)
         ax2.set_ylim(0, 0.7)
         ax2.grid(True, alpha=0.3)
         
         plt.tight_layout()
-        plt.savefig('attack_performance_comparison.png', dpi=300, bbox_inches='tight')
+        plt.savefig('visualizations/attack_performance_comparison.png', dpi=300, bbox_inches='tight')
         plt.show()
     
     def create_member_nonmember_analysis(self):
@@ -313,12 +324,13 @@ class ResultsAnalyzer:
             df = pd.DataFrame(self.data[key])
             
             # Create scatter plot of member vs non-member accuracy
-            for dataset in datasets:
+            for idx, dataset in enumerate(datasets):
                 data_subset = df[df['dataset'] == dataset]
                 if not data_subset.empty:
                     ax.scatter(data_subset['member_accuracy'], 
                              data_subset['nonmember_accuracy'],
-                             label=dataset, alpha=0.7, s=60)
+                             label=dataset, alpha=0.7, s=60,
+                             color=professional_colors[idx], edgecolors='white', linewidth=0.5)
             
             ax.set_xlabel('Member Accuracy')
             ax.set_ylabel('Non-Member Accuracy')
@@ -329,7 +341,7 @@ class ResultsAnalyzer:
             ax.set_ylim(0, 1)
             
             # Add diagonal line (balanced accuracy)
-            ax.plot([0, 1], [1, 0], 'r--', alpha=0.5, label='Balanced Line')
+            ax.plot([0, 1], [1, 0], color='#8B0000', linestyle='--', alpha=0.5, label='Balanced Line', linewidth=2)
             
             # Add quadrant labels
             ax.text(0.1, 0.9, 'High Non-Member\nLow Member', fontsize=10, alpha=0.7)
@@ -338,7 +350,7 @@ class ResultsAnalyzer:
             ax.text(0.1, 0.1, 'Low Both', fontsize=10, alpha=0.7)
         
         plt.tight_layout()
-        plt.savefig('member_nonmember_analysis.png', dpi=300, bbox_inches='tight')
+        plt.savefig('visualizations/member_nonmember_analysis.png', dpi=300, bbox_inches='tight')
         plt.show()
     
     def create_synthetic_vs_real_comparison(self):
@@ -400,9 +412,11 @@ class ResultsAnalyzer:
             width = 0.35
             
             bars1 = ax.bar(x - width/2, synthetic_accs, width, 
-                          label='Synthetic Shadow Data', alpha=0.8)
+                          label='Synthetic Shadow Data', color=professional_colors[1], alpha=0.8,
+                          edgecolor='white', linewidth=1)
             bars2 = ax.bar(x + width/2, real_accs, width,
-                          label='Real Shadow Data', alpha=0.8)
+                          label='Real Shadow Data', color=professional_colors[5], alpha=0.8,
+                          edgecolor='white', linewidth=1)
             
             ax.set_xlabel('GNN Architecture')
             ax.set_ylabel('Attack Accuracy')
@@ -410,7 +424,7 @@ class ResultsAnalyzer:
             ax.set_xticks(x)
             ax.set_xticklabels(model_names)
             ax.legend()
-            ax.axhline(y=0.5, color='red', linestyle='--', alpha=0.7)
+            ax.axhline(y=0.5, color='#8B0000', linestyle='--', alpha=0.6, linewidth=2)
             ax.grid(True, alpha=0.3)
             
             # Add value labels
@@ -424,7 +438,177 @@ class ResultsAnalyzer:
                                ha='center', va='bottom', fontsize=9)
         
         plt.tight_layout()
-        plt.savefig('synthetic_vs_real_comparison.png', dpi=300, bbox_inches='tight')
+        plt.savefig('visualizations/synthetic_vs_real_comparison.png', dpi=300, bbox_inches='tight')
+        plt.show()
+    
+    def create_baseline_datasets_comparison(self):
+        """Create visualization showing attack performance on standard graph datasets (Cora, CiteSeer)"""
+        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(15, 6))
+        
+        # Prepare data for baseline experiments
+        models = ['GCN', 'GAT', 'SAGE', 'SGC']
+        baseline_datasets = ['Cora', 'CiteSeer']
+        
+        cora_means = []
+        citeseer_means = []
+        cora_aurocs = []
+        citeseer_aurocs = []
+        
+        for model in models:
+            key = f"baseline_{model}"
+            if key in self.summary_stats:
+                if 'Cora' in self.summary_stats[key]:
+                    cora_means.append(self.summary_stats[key]['Cora']['attack_accuracy_mean'])
+                    cora_aurocs.append(self.summary_stats[key]['Cora']['attack_auroc_mean'])
+                else:
+                    cora_means.append(0)
+                    cora_aurocs.append(0)
+                
+                if 'CiteSeer' in self.summary_stats[key]:
+                    citeseer_means.append(self.summary_stats[key]['CiteSeer']['attack_accuracy_mean'])
+                    citeseer_aurocs.append(self.summary_stats[key]['CiteSeer']['attack_auroc_mean'])
+                else:
+                    citeseer_means.append(0)
+                    citeseer_aurocs.append(0)
+            else:
+                cora_means.append(0)
+                citeseer_means.append(0)
+                cora_aurocs.append(0)
+                citeseer_aurocs.append(0)
+        
+        x = np.arange(len(models))
+        width = 0.35
+        
+        # Attack Accuracy comparison
+        bars1 = ax1.bar(x - width/2, cora_means, width, 
+                       label='Cora', color=professional_colors[2], alpha=0.8,
+                       edgecolor='white', linewidth=1)
+        bars2 = ax1.bar(x + width/2, citeseer_means, width,
+                       label='CiteSeer', color=professional_colors[6], alpha=0.8,
+                       edgecolor='white', linewidth=1)
+        
+        ax1.set_xlabel('GNN Architecture')
+        ax1.set_ylabel('Attack Accuracy')
+        ax1.set_title('Attack Accuracy on Standard Graph Datasets')
+        ax1.set_xticks(x)
+        ax1.set_xticklabels(models)
+        ax1.legend()
+        ax1.axhline(y=0.5, color='#8B0000', linestyle='--', alpha=0.6, label='Random Guess', linewidth=2)
+        ax1.set_ylim(0, 1.0)
+        ax1.grid(True, alpha=0.3)
+        
+        # Add value labels on bars
+        for bars in [bars1, bars2]:
+            for bar in bars:
+                height = bar.get_height()
+                if height > 0:
+                    ax1.annotate(f'{height:.3f}',
+                               xy=(bar.get_x() + bar.get_width() / 2, height),
+                               xytext=(0, 3),
+                               textcoords="offset points",
+                               ha='center', va='bottom', fontsize=9)
+        
+        # AUROC comparison
+        bars3 = ax2.bar(x - width/2, cora_aurocs, width, 
+                       label='Cora', color=professional_colors[2], alpha=0.8,
+                       edgecolor='white', linewidth=1)
+        bars4 = ax2.bar(x + width/2, citeseer_aurocs, width,
+                       label='CiteSeer', color=professional_colors[6], alpha=0.8,
+                       edgecolor='white', linewidth=1)
+        
+        ax2.set_xlabel('GNN Architecture')
+        ax2.set_ylabel('Attack AUROC')
+        ax2.set_title('Attack AUROC on Standard Graph Datasets')
+        ax2.set_xticks(x)
+        ax2.set_xticklabels(models)
+        ax2.legend()
+        ax2.axhline(y=0.5, color='#8B0000', linestyle='--', alpha=0.6, label='Random Guess', linewidth=2)
+        ax2.set_ylim(0, 1.0)
+        ax2.grid(True, alpha=0.3)
+        
+        # Add value labels for AUROC
+        for bars in [bars3, bars4]:
+            for bar in bars:
+                height = bar.get_height()
+                if height > 0:
+                    ax2.annotate(f'{height:.3f}',
+                               xy=(bar.get_x() + bar.get_width() / 2, height),
+                               xytext=(0, 3),
+                               textcoords="offset points",
+                               ha='center', va='bottom', fontsize=9)
+        
+        plt.tight_layout()
+        plt.savefig('visualizations/baseline_datasets_comparison.png', dpi=300, bbox_inches='tight')
+        plt.show()
+    
+    def create_comprehensive_datasets_comparison(self):
+        """Create a comprehensive comparison showing attack effectiveness across all datasets"""
+        fig, ax = plt.subplots(1, 1, figsize=(16, 8))
+        
+        # Collect data for all datasets and experiment types
+        datasets_data = {}
+        
+        # Process synthetic experiments
+        for model in ['GCN', 'GAT', 'SAGE', 'SGC']:
+            key = f"synthetic_{model}"
+            if key in self.summary_stats:
+                for dataset, stats in self.summary_stats[key].items():
+                    clean_name = dataset.replace('Custom_', '')
+                    if clean_name not in datasets_data:
+                        datasets_data[clean_name] = {}
+                    datasets_data[clean_name][model] = stats['attack_accuracy_mean']
+        
+        # Process baseline experiments (Cora, CiteSeer)
+        for model in ['GCN', 'GAT', 'SAGE', 'SGC']:
+            key = f"baseline_{model}"
+            if key in self.summary_stats:
+                for dataset, stats in self.summary_stats[key].items():
+                    if dataset not in datasets_data:
+                        datasets_data[dataset] = {}
+                    datasets_data[dataset][model] = stats['attack_accuracy_mean']
+        
+        # Prepare plotting data
+        datasets = list(datasets_data.keys())
+        models = ['GCN', 'GAT', 'SAGE', 'SGC']
+        x = np.arange(len(datasets))
+        width = 0.2
+        
+        # Plot bars for each model
+        for i, model in enumerate(models):
+            model_data = []
+            for dataset in datasets:
+                if model in datasets_data[dataset]:
+                    model_data.append(datasets_data[dataset][model])
+                else:
+                    model_data.append(0)
+            
+            bars = ax.bar(x + i*width, model_data, width, 
+                         label=model, color=professional_colors[i], alpha=0.8,
+                         edgecolor='white', linewidth=1)
+            
+            # Add value labels
+            for j, bar in enumerate(bars):
+                height = bar.get_height()
+                if height > 0:
+                    ax.annotate(f'{height:.2f}',
+                               xy=(bar.get_x() + bar.get_width() / 2, height),
+                               xytext=(0, 3),
+                               textcoords="offset points",
+                               ha='center', va='bottom', fontsize=8)
+        
+        ax.set_xlabel('Dataset')
+        ax.set_ylabel('Attack Accuracy')
+        ax.set_title('Membership Inference Attack Effectiveness Across Different Graph Datasets')
+        ax.set_xticks(x + width * 1.5)
+        ax.set_xticklabels(datasets)
+        ax.legend()
+        ax.axhline(y=0.5, color='#8B0000', linestyle='--', alpha=0.6, 
+                  label='Random Guess', linewidth=2)
+        ax.set_ylim(0, 1.0)
+        ax.grid(True, alpha=0.3)
+        
+        plt.tight_layout()
+        plt.savefig('visualizations/comprehensive_datasets_comparison.png', dpi=300, bbox_inches='tight')
         plt.show()
     
     def create_model_performance_analysis(self):
@@ -444,12 +628,13 @@ class ResultsAnalyzer:
             df = pd.DataFrame(self.data[key])
             
             # Plot target vs shadow model performance
-            for dataset in ['Custom_Twitch', 'Custom_Event']:
+            for idx, dataset in enumerate(['Custom_Twitch', 'Custom_Event']):
                 data_subset = df[df['dataset'] == dataset]
                 if not data_subset.empty:
                     ax.scatter(data_subset['target_test'], 
                              data_subset['shadow_test'],
-                             label=f'{dataset}', alpha=0.7, s=60)
+                             label=f'{dataset}', alpha=0.7, s=60,
+                             color=professional_colors[idx], edgecolors='white', linewidth=0.5)
             
             ax.set_xlabel('Target Model Test Accuracy')
             ax.set_ylabel('Shadow Model Test Accuracy')
@@ -460,10 +645,11 @@ class ResultsAnalyzer:
             # Add diagonal line (perfect match)
             min_val = min(ax.get_xlim()[0], ax.get_ylim()[0])
             max_val = max(ax.get_xlim()[1], ax.get_ylim()[1])
-            ax.plot([min_val, max_val], [min_val, max_val], 'r--', alpha=0.5, label='Perfect Match')
+            ax.plot([min_val, max_val], [min_val, max_val], color='#8B0000', linestyle='--', 
+                   alpha=0.5, label='Perfect Match', linewidth=2)
         
         plt.tight_layout()
-        plt.savefig('model_performance_analysis.png', dpi=300, bbox_inches='tight')
+        plt.savefig('visualizations/model_performance_analysis.png', dpi=300, bbox_inches='tight')
         plt.show()
     
     def create_summary_table(self):
@@ -549,6 +735,8 @@ class ResultsAnalyzer:
         self.create_attack_accuracy_comparison()
         self.create_member_nonmember_analysis()
         self.create_synthetic_vs_real_comparison()
+        self.create_baseline_datasets_comparison()
+        self.create_comprehensive_datasets_comparison()
         self.create_model_performance_analysis()
         
         # Generate summary
@@ -559,6 +747,8 @@ class ResultsAnalyzer:
         print("- attack_performance_comparison.png")
         print("- member_nonmember_analysis.png") 
         print("- synthetic_vs_real_comparison.png")
+        print("- baseline_datasets_comparison.png")
+        print("- comprehensive_datasets_comparison.png")
         print("- model_performance_analysis.png")
         print("- results_summary.csv")
         print("="*80)
