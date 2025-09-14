@@ -215,17 +215,7 @@ The \texttt{rebmi\_adapter.py} module\footnote{\url{https://gitlab.rhrk.uni-kl.d
 These features transform raw attributes into a rich representation where structural and behavioral patterns expose membership through model overfitting characteristics.
 
 \subsection{Attack Model Enhancement}
-The improved attack model\footnote{Attack model in TSTS.py: \url{https://gitlab.rhrk.uni-kl.de/div26fuz/uni-project-dec/-/blob/main/rebMIGraph/TSTS.py\#L1725-1811}} significantly outperforms the original simple classifier. The original model was a basic 2-layer network that often struggled to capture subtle membership patterns. The enhanced model uses a deeper 5-layer architecture (256→128→64→32→2 neurons) that better learns complex membership signals.
-
-Key improvements that boost attack success:
-\begin{itemize}
-\item \textbf{Batch Normalization:} Stabilizes training by normalizing inputs at each layer, preventing gradient vanishing and allowing deeper networks to train effectively
-\item \textbf{Adaptive Dropout:} Uses higher dropout (0.3) in early layers and lower (0.21) in later layers, preventing overfitting while preserving learned patterns
-\item \textbf{Kaiming Initialization:} Replaces random weights with mathematically optimized starting values, leading to faster convergence and better final accuracy
-\item \textbf{Residual Connections:} Skip connections help gradients flow through the deeper network, maintaining training stability
-\end{itemize}
-
-These changes work together coherently, batch normalization allows the network to be deeper, dropout prevents it from memorizing noise, and proper initialization ensures training starts from a good position. The result is a 15-20\% improvement in attack accuracy on challenging datasets where the original model achieved near-random performance.
+The improved attack model\footnote{Attack model in TSTS.py: \url{https://gitlab.rhrk.uni-kl.de/div26fuz/uni-project-dec/-/blob/main/rebMIGraph/TSTS.py\#L1725-1811}} implements modern deep learning techniques \cite{he2015delving} through a deeper 5-layer architecture (256→128→64→32→2 neurons) that significantly outperforms the original 2-layer classifier. Key improvements include batch normalization for training stability, adaptive dropout (0.3 early, 0.21 later layers) to prevent overfitting, Kaiming initialization for optimized weight starting values, and residual connections for gradient flow. These techniques work together—batch normalization enables deeper networks, dropout prevents noise memorization, and proper initialization ensures effective training convergence—resulting in 15-20\% improved attack accuracy on challenging datasets where the original model achieved near-random performance.
 
 \section{Results and Experimentation}
 \label{results}
