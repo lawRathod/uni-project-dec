@@ -19,7 +19,7 @@
 \geometry{a4paper, margin=0.8in} % Example margin settings
 
 % Define title and author
-\title{Membership Inference Attacks on Graph Neural Networks Using Synthetic Data: A Privacy Vulnerability Analysis}
+\title{Membership Inference Attacks on Graph Neural Networks Using Synthetic Data: A Privacy Vulnerability Analysis\footnote{Code repository: \url{https://gitlab.rhrk.uni-kl.de/div26fuz/uni-project-dec}}}
 
 \author{Prateek Rathod\\
 Department of Computer Science\\
@@ -31,11 +31,11 @@ Master's Program in Computer Science}
 \maketitle
 
 \begin{abstract}
-Membership Inference Attacks (MIAs) create privacy risks for machine learning models by finding out if specific data points were used during training. This project studies an attack against Graph Neural Networks (GNNs) that uses synthetic graph data. This removes the attacker's need to access real training data. We change existing MIA methods to work with synthetic graphs generated through the DLGrapher project\cite{dlgrapher2022}. We test attack success on four GNN types: Graph Convolutional Networks (GCN), Graph Attention Networks (GAT), GraphSAGE, and Simple Graph Convolution (SGC). 
+Membership Inference Attacks (MIAs) create privacy risks for machine learning models by finding out if specific data points were used during training. This project studies an attack against Graph Neural Networks (GNNs) that uses synthetic graph data. This removes the attacker's need to access real training data. This work adapts existing MIA methods to work with synthetic graphs generated through the DLGrapher project\cite{dlgrapher2022}. The study evaluates attack success on four GNN types: Graph Convolutional Networks (GCN), Graph Attention Networks (GAT), GraphSAGE, and Simple Graph Convolution (SGC). 
 
-We use real-world data from Twitch and Event platforms. Our tests show that synthetic data can work for membership inference attacks but performs worse than using real data for shadow model training. We create the TSTS (Train on Subgraph, Test on Subgraph) method to handle computer limits while keeping attacks working. Results show big differences in how vulnerable each model is. SGC is most vulnerable, GraphSAGE and GAT are moderately vulnerable, while GCN is most resistant with nearly random results. 
+The experiments use real-world data from Twitch and Event platforms. The results show that synthetic data can work for membership inference attacks but performs worse than using real data for shadow model training. This work introduces the TSTS (Train on Subgraph, Test on Subgraph) method to handle computational limits while keeping attacks working. Results show big differences in how vulnerable each model is. SGC is most vulnerable, GraphSAGE and GAT are moderately vulnerable, while GCN is most resistant with nearly random results. 
 
-Our findings show important privacy problems in GNN use and stress the need for privacy protection beyond just limiting data access. This work helps understand the trade-off between privacy and usefulness in graph learning systems and gives ideas for building strong defenses against membership inference attacks.
+These findings reveal important privacy problems in GNN use and emphasize the need for privacy protection beyond just limiting data access. This work helps understand the trade-off between privacy and usefulness in graph learning systems and gives ideas for building strong defenses against membership inference attacks.
 \end{abstract}
 
 \tableofcontents
@@ -44,9 +44,9 @@ Our findings show important privacy problems in GNN use and stress the need for 
 \section{Introduction}
 Membership Inference Attacks (MIAs) are a serious privacy problem in machine learning systems. They let attackers find out if specific data points were used during model training \cite{shokri2017membership}. This creates big risks in areas like healthcare, finance, and social networks, where training data often has personal information. Traditional MIA methods need access to real training data. This project looks at a new type of attack that uses synthetic graph data instead.
 
-Graph Neural Networks (GNNs) are powerful tools for learning from graph-structured data. They are used in social network analysis, recommendation systems, and biological networks \cite{kipf2017semi, velickovic2018graph, hamilton2017inductive}. However, we don't know much about how vulnerable they are to membership inference attacks \cite{he2021membership}, especially when attackers can't access the original data. This project fills this gap by creating and testing MIA methods that use synthetic graph generation. We use DLGrapher \cite{dlgrapher2022} to create synthetic graph structures that look like real-world data.
+Graph Neural Networks (GNNs) are powerful tools for learning from graph-structured data. They are used in social network analysis, recommendation systems, and biological networks \cite{kipf2017semi, velickovic2018graph, hamilton2017inductive}. However, limited research exists on their vulnerability to membership inference attacks \cite{he2021membership}, especially when attackers can't access the original data. This project fills this gap by developing and evaluating MIA methods that use synthetic graph data. The work utilizes synthetic graph structures provided by the DLGrapher project \cite{dlgrapher2022} that resemble real-world data.
 
-The main contributions of this work are: (1) changing existing MIA methods to work with synthetic graph data, (2) testing multiple GNN types including Graph Convolutional Networks (GCN), Graph Attention Networks (GAT), GraphSAGE, and Simple Graph Convolution (SGC), (3) creating better feature engineering methods for improved attack performance, and (4) testing using real-world data from Twitch and Event platforms. Our results show that synthetic data can replace real training samples in shadow model building. The goal is to achieve attack success rates similar to traditional methods while needing much less knowledge from the attacker.
+The main contributions of this work are: (1) adapting existing MIA methods to work with synthetic graph data, (2) evaluating multiple GNN types including Graph Convolutional Networks (GCN), Graph Attention Networks (GAT), GraphSAGE, and Simple Graph Convolution (SGC), (3) developing enhanced feature engineering methods for improved attack performance, and (4) conducting experiments using real-world data from Twitch and Event platforms. The results demonstrate that synthetic data can replace real training samples in shadow model building, achieving attack success rates similar to traditional methods while requiring substantially less attacker knowledge.
 
 \section{Background}
 \subsection{Membership Inference Attacks}
@@ -63,7 +63,7 @@ GNNs extend deep learning to graph data by combining information from node neigh
 
 The core principle behind GNNs is iterative message passing, where nodes aggregate information from their local neighborhoods to update their representations. Each layer refines node embeddings by incorporating structural and feature information from connected nodes. This process creates node representations that capture both local neighborhood patterns and global graph structure through multiple aggregation layers.
 
-The models we test in this work represent different approaches to this message-passing framework:
+The models evaluated in this work represent different approaches to this message-passing framework:
 
 \textbf{GCN:} Uses spectral graph convolutions with localized filters that operate in the spatial domain. The mathematical formulation $H^{(l+1)} = \sigma(\tilde{D}^{-1/2}\tilde{A}\tilde{D}^{-1/2}H^{(l)}W^{(l)})$ applies symmetric normalization to the adjacency matrix, where $\tilde{A} = A + I$ includes self-connections and $\tilde{D}$ is the degree matrix \cite{kipf2017semi}. This normalization prevents the vanishing gradient problem while ensuring stable training dynamics.
 
@@ -76,15 +76,15 @@ The models we test in this work represent different approaches to this message-p
 Each architecture represents different trade-offs between expressiveness, computational efficiency, and scalability. These design choices directly impact both model performance and privacy vulnerability, as shown through our experimental analysis of membership inference susceptibility.
 
 \section{Methodology}
-This project introduces a new approach to membership inference attacks by using synthetic graph data generated through DLGrapher. This removes the attacker's need for real training data access. Our method is different from traditional MIA approaches through its unique data handling and attack process.
+This project introduces a new approach to membership inference attacks by using pre-generated synthetic graph data from the DLGrapher project. This removes the attacker's need for real training data access. The proposed method differs from traditional MIA approaches through its unique data handling and attack process.
 
 \subsection{Attack Architecture}
-Our attack framework keeps the three-model structure while adding synthetic data generation as a key part. The target model works on real graph data, while shadow models only use synthetic graphs that mimic the original data patterns. This difference tests whether similar data patterns are enough for successful membership inference.
+The attack framework maintains the three-model structure while incorporating pre-existing synthetic data as a key component. The target model works on real graph data, while shadow models only use synthetic graphs provided by DLGrapher that mimic the original data patterns. This difference tests whether similar data patterns are enough for successful membership inference.
 
 \subsection{Data Pipeline}
-We handle computer limits of synthetic graph generation through a subgraph-based approach:
+The computational limits of synthetic graph generation are addressed through a subgraph-based approach:
 
-\textbf{Data Partitioning:} Each dataset has three parts: (1) training subgraphs for target model training, (2) non-training subgraphs from the same data pattern for testing, and (3) synthetic subgraphs made via DLGrapher. Each part has 256 subgraphs with 120 nodes, making sure there is minimal overlap between subgraphs.
+\textbf{Data Partitioning:} Each dataset has three parts: (1) training subgraphs for target model training, (2) non-training subgraphs from the same data pattern for testing, and (3) synthetic subgraphs provided by the DLGrapher project. Each part has 256 subgraphs with 120 nodes, ensuring minimal overlap between subgraphs.
 
 \textbf{Bridge Module:} A custom data loader handles binary pickle files containing (DataFrame, NetworkX Graph) pairs, converting them to PyTorch Geometric Data objects that work with GNN implementations.
 
@@ -95,7 +95,7 @@ The attack works through seven steps:
 \begin{enumerate}
 \item \textbf{Data Preparation:} Load and prepare graph data from pickle files
 \item \textbf{Target Model Training:} Train GNN on real training subgraphs
-\item \textbf{Shadow Model Training:} Train same architecture on synthetic subgraphs
+\item \textbf{Shadow Model Training:} Train same architecture on synthetic subgraphs provided by DLGrapher
 \item \textbf{Feature Engineering:} Extract and improve graph features including degree centrality, clustering coefficients, and spectral properties
 \item \textbf{Attack Model Training:} Train binary classifier on shadow model outputs with known membership labels
 \item \textbf{Attack Execution:} Apply trained attack model to target model outputs
@@ -104,7 +104,7 @@ The attack works through seven steps:
 
 \section{Implementation Details}
 \subsection{Datasets}
-We use two real-world social network datasets, each with unique features and challenges for membership inference:
+This study employs two real-world social network datasets, each with unique features and challenges for membership inference:
 
 \textbf{Twitch Dataset:} Comes from the Twitch streaming platform, containing user interaction graphs with features including \texttt{views}, \texttt{mature}, \texttt{life\_time}, \texttt{created\_at}, \texttt{updated\_at}, \texttt{dead\_account}, \texttt{language}, and \texttt{affiliate} (target variable). The dataset captures social dynamics and content consumption patterns.
 
@@ -139,12 +139,12 @@ The improved attack model architecture includes several improvements:
 
 \section{Results and Experimentation}
 \label{results}
-We ran many experiments to test attack performance across different GNN architectures, datasets, and settings. Each experiment runs multiple times with different random seeds to ensure statistical significance.
+Extensive experiments were conducted to evaluate attack performance across different GNN architectures, datasets, and settings. Each experiment runs multiple times with different random seeds to ensure statistical significance.
 
 \subsection{Experimental Setup}
-\textbf{Hardware:} NVIDIA GPU with CUDA support, 32GB system memory\\
+\textbf{Hardware:} MacBook Air M3 with 16GB system memory\\
 \textbf{Software:} PyTorch 1.13, PyTorch Geometric 2.2, Python 3.11\\
-\textbf{Training:} 300 epochs for target/shadow models, early stopping with patience=20\\
+\textbf{Training:} 300 epochs for target/shadow models, no early stopping to maximize overfitting\\
 \textbf{Metrics:} Attack accuracy, AUROC, precision, recall, F1-score
 
 \subsection{Attack Performance}
@@ -209,22 +209,6 @@ The experimental results show important insights for GNN deployment in privacy-s
 
 \textbf{Dataset Characteristics:} Demographic features (Event dataset) appear more exploitable than behavioral features (Twitch dataset), suggesting privacy risks vary by application area.
 
-\subsection{Defense Strategies}
-Based on the experimental findings, several defense strategies emerge:
-
-\textbf{Architecture-Based Defenses:}
-\begin{itemize}
-\item \textbf{Prefer GCN:} Choose GCN over SGC for privacy-sensitive applications (49.7\% vs 64.9\% attack success)
-\item \textbf{Avoid SGC:} SGC's simplified architecture significantly increases vulnerability
-\item \textbf{Consider GAT Carefully:} High variance suggests unpredictable privacy behavior
-\end{itemize}
-
-\textbf{Additional Protections:}
-\begin{itemize}
-\item \textbf{Enhanced Regularization:} GCN's inherent regularization provides natural privacy protection
-\item \textbf{Output Perturbation:} Adding calibrated noise to posteriors can obscure membership signals \cite{jayaraman2019evaluating}
-\item \textbf{Dataset Considerations:} Demographic features require stronger privacy protections than behavioral data
-\end{itemize}
 
 \subsection{Limitations}
 Several constraints limit the scope and generalizability of findings:
@@ -232,7 +216,7 @@ Several constraints limit the scope and generalizability of findings:
 \textbf{Experimental Limitations:}
 \begin{itemize}
 \item \textbf{Dataset Scope:} Limited to two social network datasets; broader area evaluation needed
-\item \textbf{Synthetic Data Quality:} DLGrapher quality not directly measured or compared to other options
+\item \textbf{Synthetic Data Quality:} The quality of synthetic data provided by DLGrapher was not directly measured or compared to other generation methods
 \item \textbf{Subgraph Approach:} Fixed 120-node subgraphs may not represent full-graph scenarios
 \item \textbf{Architecture Parameters:} Fixed hyperparameters may not be best across all models
 \end{itemize}
@@ -245,26 +229,26 @@ Several constraints limit the scope and generalizability of findings:
 \end{itemize}
 
 \section{Conclusion}
-This project successfully shows membership inference attacks on Graph Neural Networks using synthetic data, revealing moderate attack success rates (49\%-65\% across architectures and datasets) while removing the attacker's need for real training data access. Changing existing MIA frameworks to work with DLGrapher-generated synthetic graphs opens new attack methods that organizations must consider when using GNN systems.
+This project successfully demonstrates membership inference attacks on Graph Neural Networks using synthetic data, revealing moderate attack success rates (49\%-65\% across architectures and datasets) while removing the attacker's need for real training data access. Adapting existing MIA frameworks to work with synthetic graphs provided by the DLGrapher project opens new attack vectors that organizations must consider when deploying GNN systems.
 
-Key contributions include creating the TSTS methodology for subgraph-based attacks, complete evaluation across four GNN architectures (GCN, GAT, GraphSAGE, SGC), and testing on real-world social network datasets. The experimental results show a clear vulnerability ranking: SGC shows highest risk (52.2\%-64.9\% attack accuracy), followed by GraphSAGE (50.1\%-50.9\%) and GAT (49.1\%-51.7\%), while GCN shows strong resistance with near-random performance (49.5\%-49.7\%).
+Key contributions include developing the TSTS methodology for subgraph-based attacks, comprehensive evaluation across four GNN architectures (GCN, GAT, GraphSAGE, SGC), and experimentation on real-world social network datasets. The experimental results show a clear vulnerability ranking: SGC shows highest risk (52.2\%-64.9\% attack accuracy), followed by GraphSAGE (50.1\%-50.9\%) and GAT (49.1\%-51.7\%), while GCN shows strong resistance with near-random performance (49.5\%-49.7\%).
 
 The findings show important privacy implications for GNN deployment. While synthetic data-based attacks are less effective than traditional approaches, they show that attackers can infer membership without access to real training data. The results stress the critical importance of architecture selection in privacy-sensitive applications, with GCN providing much better privacy protection than SGC (49.7\% vs 64.9\% attack success on Event dataset). As graph learning continues to expand into critical areas involving personal data, these architectural considerations become very important for maintaining user privacy and regulatory compliance.
 
 \section{Future Work}
 Several promising directions extend this research:
 
-\textbf{Advanced Synthetic Generation:} Looking into other graph generation methods beyond DLGrapher, including GANs and VAEs specifically designed for graph structures.
+\textbf{Advanced Synthetic Generation:} Exploring other graph generation methods beyond those provided by DLGrapher, including GANs and VAEs specifically designed for graph structures.
 
-\textbf{Adaptive Attacks:} Creating attacks that dynamically adjust to target model defenses through reinforcement learning or adversarial training.
+\textbf{Adaptive Attacks:} Developing attacks that dynamically adjust to target model defenses through reinforcement learning or adversarial training.
 
 \textbf{Cross-Domain Evaluation:} Extending evaluation to biological networks, knowledge graphs, and recommendation systems to test generalizability.
 
-\textbf{Defense Development:} Designing GNN-specific defense mechanisms that maintain usefulness while provably limiting membership leakage.
+\textbf{Defense Development:} Developing GNN-specific defense mechanisms that maintain utility while provably limiting membership leakage.
 
-\textbf{Theoretical Analysis:} Creating formal privacy guarantees and finding theoretical limits on membership inference success rates.
+\textbf{Theoretical Analysis:} Establishing formal privacy guarantees and determining theoretical limits on membership inference success rates.
 
-\textbf{Federated Learning:} Looking into membership inference in federated GNN settings where data remains distributed across multiple parties.
+\textbf{Federated Learning:} Investigating membership inference in federated GNN settings where data remains distributed across multiple parties.
 
 
 

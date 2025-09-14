@@ -20,7 +20,6 @@
 \contentsline {subsection}{\numberline {6.2}Performance Variance Analysis}{6}{subsection.6.2}%
 \contentsline {section}{\numberline {7}Discussion}{6}{section.7}%
 \contentsline {subsection}{\numberline {7.1}Privacy Implications}{6}{subsection.7.1}%
-\contentsline {subsection}{\numberline {7.2}Defense Strategies}{7}{subsection.7.2}%
-\contentsline {subsection}{\numberline {7.3}Limitations}{7}{subsection.7.3}%
+\contentsline {subsection}{\numberline {7.2}Limitations}{7}{subsection.7.2}%
 \contentsline {section}{\numberline {8}Conclusion}{7}{section.8}%
-\contentsline {section}{\numberline {9}Future Work}{8}{section.9}%
+\contentsline {section}{\numberline {9}Future Work}{7}{section.9}%

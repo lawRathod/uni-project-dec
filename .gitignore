@@ -21,3 +21,9 @@ rebMIGraph/**
 !rebMIGraph/bridge.py
 !rebMIGraph/resultfile**
 !rebMIGraph/rebmi_adapter.py
+
+# report
+report/**
+!report/citations.bib
+!report/main.tex
+!report/main.pdg
