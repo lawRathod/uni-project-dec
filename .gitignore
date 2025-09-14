@@ -24,6 +24,6 @@ rebMIGraph/**
 
 # report
 report/**
-!report/citations.bib
 !report/main.tex
-!report/main.pdg
+!report/main.pdf
+!report/citations.bib
