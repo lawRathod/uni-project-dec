@@ -10,6 +10,8 @@
 \usepackage{subcaption} % For subfigures
 \usepackage{float}      % For precise figure placement
 \usepackage{multirow}   % For table multirow cells
+\usepackage{tikz}        % For drawing diagrams
+\usetikzlibrary{positioning, shapes, arrows, calc}
 \usepackage{hyperref}   % For clickable links in the PDF
 \hypersetup{
     colorlinks=true,  % Colors the links instead of boxing them
@@ -59,27 +61,86 @@ Membership Inference Attacks use the fact that machine learning models often ove
 \textbf{Attack Model:} A binary classifier trained to tell the difference between members and non-members based on model outputs. It learns decision rules from shadow model behaviors and uses them on target model outputs.
 
 \subsection{Graph Neural Networks}
-GNNs extend deep learning to graph data by combining information from node neighborhoods through message-passing mechanisms. Unlike traditional neural networks that work with grid-structured data, GNNs handle irregular graph topologies where each node can have different numbers of connections. This flexibility makes them useful for analyzing social networks, biological systems, and knowledge graphs where relationships are important.
+GNNs work by letting each node collect information from its neighbors to make predictions. Unlike regular neural networks that process images or text, GNNs handle irregular graph structures where nodes can have any number of connections. This makes them useful for social networks, recommendation systems, and biological data where relationships matter.
 
-The core principle behind GNNs is iterative message passing, where nodes aggregate information from their local neighborhoods to update their representations. Each layer refines node embeddings by incorporating structural and feature information from connected nodes. This process creates node representations that capture both local neighborhood patterns and global graph structure through multiple aggregation layers.
+The basic idea is simple: each node looks at its neighbors, combines their information, and updates its own representation. Multiple layers of this process help nodes understand both their immediate neighborhood and the broader graph structure.
 
-The models evaluated in this work represent different approaches to this message-passing framework:
+We evaluate four popular GNN architectures that differ in how they combine neighbor information:
 
-\textbf{GCN:} Uses spectral graph convolutions with localized filters that operate in the spatial domain. The mathematical formulation $H^{(l+1)} = \sigma(\tilde{D}^{-1/2}\tilde{A}\tilde{D}^{-1/2}H^{(l)}W^{(l)})$ applies symmetric normalization to the adjacency matrix, where $\tilde{A} = A + I$ includes self-connections and $\tilde{D}$ is the degree matrix \cite{kipf2017semi}. This normalization prevents the vanishing gradient problem while ensuring stable training dynamics.
+\textbf{GCN} \cite{kipf2017semi}: Averages information from all neighbors equally. Uses normalization to prevent training problems and ensure stable learning.
 
-\textbf{GAT:} Uses attention mechanisms to learn adaptive importance weights for each neighbor connection. The attention coefficients $\alpha_{ij} = \text{softmax}_j(\text{LeakyReLU}(a^T[Wh_i||Wh_j]))$ allow the model to focus on relevant neighbors while ignoring less important connections \cite{velickovic2018graph}. This selective attention enables better handling of noisy or irrelevant edges in real-world graphs.
+\textbf{GAT} \cite{velickovic2018graph}: Uses attention to focus on important neighbors while ignoring less relevant ones. This selective attention helps handle noisy connections in real graphs.
 
-\textbf{GraphSAGE:} Addresses scalability challenges by sampling fixed-size neighborhoods rather than using all neighbors. It combines features through learnable aggregation functions including mean pooling, LSTM-based sequential processing, or max pooling operations \cite{hamilton2017inductive}. This sampling approach enables training on large graphs that would otherwise exceed memory limits.
+\textbf{GraphSAGE} \cite{hamilton2017inductive}: Samples a fixed number of neighbors instead of using all of them. This makes training faster on large graphs that would otherwise be too big to fit in memory.
 
-\textbf{SGC:} Simplifies the GCN architecture by removing nonlinear activation functions between layers, reducing computational complexity to $Y = \text{softmax}(\tilde{A}^KXW)$ where $K$ consecutive graph convolutions are collapsed into a single operation \cite{wu2019simplifying}. This simplification maintains performance while reducing training time and memory requirements.
+\textbf{SGC} \cite{wu2019simplifying}: Simplifies GCN by removing activation functions between layers, making it faster to train while maintaining good performance.
 
-Each architecture\footnote{GNN implementations in TSTS.py: \url{https://gitlab.rhrk.uni-kl.de/div26fuz/uni-project-dec/-/blob/main/rebMIGraph/TSTS.py\#L317-361}} represents different trade-offs between expressiveness, computational efficiency, and scalability. These design choices directly impact both model performance and privacy vulnerability, as shown through our experimental analysis of membership inference susceptibility.
+Each architecture\footnote{GNN implementations in TSTS.py: \url{https://gitlab.rhrk.uni-kl.de/div26fuz/uni-project-dec/-/blob/main/rebMIGraph/TSTS.py\#L317-361}} represents different trade-offs between model complexity and efficiency. These design choices affect both how well the model performs and how vulnerable it is to privacy attacks.
 
 \section{Methodology}
 This project introduces a new approach to membership inference attacks by using pre-generated synthetic graph data from the DLGrapher project. This removes the attacker's need for real training data access. The proposed method differs from traditional MIA approaches through its unique data handling and attack process.
 
 \subsection{Attack Architecture}
 The attack framework maintains the three-model structure while incorporating pre-existing synthetic data as a key component. The target model works on real graph data, while shadow models only use synthetic graphs provided by DLGrapher that mimic the original data patterns. This difference tests whether similar data patterns are enough for successful membership inference.
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[
+    node distance=1.5cm and 2cm,
+    box/.style={rectangle, draw, thick, minimum width=3cm, minimum height=1cm, align=center},
+    data/.style={rectangle, draw, dashed, minimum width=2.5cm, minimum height=0.8cm, align=center},
+    arrow/.style={->, thick},
+    label/.style={font=\small}
+]
+    % Data sources
+    \node[data, fill=blue!10] (real-train) {Real Training\\Subgraphs};
+    \node[data, right=of real-train, fill=blue!10] (real-test) {Real Test\\Subgraphs};
+    \node[data, below=3cm of real-train, fill=green!10] (synth-train) {Synthetic Training\\Subgraphs};
+    \node[data, right=of synth-train, fill=green!10] (synth-test) {Synthetic Test\\Subgraphs};
+    
+    % Models
+    \node[box, below=1.2cm of real-train, xshift=2.5cm, fill=red!20] (target) {\textbf{Target Model}\\(GCN/GAT/SAGE/SGC)};
+    \node[box, below=1.2cm of synth-train, xshift=2.5cm, fill=yellow!20] (shadow) {\textbf{Shadow Model}\\(Same Architecture)};
+    
+    % Outputs
+    \node[data, right=1cm of target] (target-out) {Confidence\\Scores};
+    \node[data, right=1cm of shadow] (shadow-out) {Confidence\\Scores +\\Known Labels};
+    
+    % Attack model
+    \node[box, below=1cm of target-out, xshift=3cm, fill=purple!20] (attack-train) {\textbf{Attack Model}\\Training};
+    \node[box, right=2cm of attack-train, fill=purple!20] (attack-test) {\textbf{Attack Model}\\Inference};
+    
+    % Result
+    \node[data, below=1cm of attack-test, fill=orange!20] (result) {Membership\\Prediction};
+    
+    % Arrows
+    \draw[arrow] (real-train) -- (target);
+    \draw[arrow] (real-test) -- (target);
+    \draw[arrow] (synth-train) -- (shadow);
+    \draw[arrow] (synth-test) -- (shadow);
+    
+    \draw[arrow] (target) -- (target-out);
+    \draw[arrow] (shadow) -- (shadow-out);
+    
+    \draw[arrow] (shadow-out) -- (attack-train);
+    \draw[arrow] (attack-train) -- (attack-test);
+    \draw[arrow] (target-out) -- (attack-test);
+    \draw[arrow] (attack-test) -- (result);
+    
+    % Labels - moved to avoid overlaps
+    \node[label, below=0cm of target] {\footnotesize Trains on real data};
+    \node[label, below=0cm of shadow] {\footnotesize Trains on synthetic};
+    
+    % Phase labels - adjusted positioning
+    \draw[thick, dotted] ($(real-train.north west)+(-0.5,0.8)$) rectangle ($(shadow-out.south east)+(0.5,-0.5)$);
+    \node[label, font=\footnotesize\bfseries] at ($(real-train.north west)+(1.5,1.1)$) {Training Phase};
+    
+    \draw[thick, dotted] ($(attack-train.north west)+(-0.5,0.8)$) rectangle ($(result.south east)+(0.5,-0.3)$);
+    \node[label, font=\footnotesize\bfseries] at ($(attack-train.north west)+(1.5,1.1)$) {Attack Phase};
+\end{tikzpicture}
+\caption{Membership inference attack architecture showing data flow. The target model trains on real subgraphs while the shadow model uses synthetic data from DLGrapher. Both models produce confidence scores that feed into the attack model—shadow outputs with known membership labels for training, target outputs for inference.}
+\label{fig:attack-architecture}
+\end{figure}
 
 \subsection{Data Pipeline}
 The computational limits of synthetic graph generation are addressed through a subgraph-based approach:
