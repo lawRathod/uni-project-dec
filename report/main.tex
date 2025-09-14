@@ -73,7 +73,7 @@ The models evaluated in this work represent different approaches to this message
 
 \textbf{SGC:} Simplifies the GCN architecture by removing nonlinear activation functions between layers, reducing computational complexity to $Y = \text{softmax}(\tilde{A}^KXW)$ where $K$ consecutive graph convolutions are collapsed into a single operation \cite{wu2019simplifying}. This simplification maintains performance while reducing training time and memory requirements.
 
-Each architecture represents different trade-offs between expressiveness, computational efficiency, and scalability. These design choices directly impact both model performance and privacy vulnerability, as shown through our experimental analysis of membership inference susceptibility.
+Each architecture\footnote{GNN implementations in TSTS.py: \url{https://gitlab.rhrk.uni-kl.de/div26fuz/uni-project-dec/-/blob/main/rebMIGraph/TSTS.py\#L317-361}} represents different trade-offs between expressiveness, computational efficiency, and scalability. These design choices directly impact both model performance and privacy vulnerability, as shown through our experimental analysis of membership inference susceptibility.
 
 \section{Methodology}
 This project introduces a new approach to membership inference attacks by using pre-generated synthetic graph data from the DLGrapher project. This removes the attacker's need for real training data access. The proposed method differs from traditional MIA approaches through its unique data handling and attack process.
@@ -86,12 +86,12 @@ The computational limits of synthetic graph generation are addressed through a s
 
 \textbf{Data Partitioning:} Each dataset has three parts: (1) training subgraphs for target model training, (2) non-training subgraphs from the same data pattern for testing, and (3) synthetic subgraphs provided by the DLGrapher project. Each part has 256 subgraphs with 120 nodes, ensuring minimal overlap between subgraphs.
 
-\textbf{Bridge Module:} A custom data loader handles binary pickle files containing (DataFrame, NetworkX Graph) pairs, converting them to PyTorch Geometric Data objects that work with GNN implementations.
+\textbf{Bridge Module:} A custom data loader\footnote{\url{https://gitlab.rhrk.uni-kl.de/div26fuz/uni-project-dec/-/blob/main/rebMIGraph/bridge.py}} handles binary pickle files containing (DataFrame, NetworkX Graph) pairs, converting them to PyTorch Geometric Data objects that work with GNN implementations.
 
-\textbf{Adapter Module:} Implements the TSTS (Train on Subgraph, Test on Subgraph) method, managing data splits and making sure target and shadow model datasets are properly separated.
+\textbf{Adapter Module:} Implements the TSTS (Train on Subgraph, Test on Subgraph) method\footnote{\url{https://gitlab.rhrk.uni-kl.de/div26fuz/uni-project-dec/-/blob/main/rebMIGraph/rebmi_adapter.py}}, managing data splits and making sure target and shadow model datasets are properly separated.
 
 \subsection{Attack Execution Pipeline}
-The attack works through seven steps:
+The attack implementation\footnote{Main attack code: \url{https://gitlab.rhrk.uni-kl.de/div26fuz/uni-project-dec/-/blob/main/rebMIGraph/TSTS.py}} works through seven steps:
 \begin{enumerate}
 \item \textbf{Data Preparation:} Load and prepare graph data from pickle files
 \item \textbf{Target Model Training:} Train GNN on real training subgraphs
@@ -100,7 +100,7 @@ The attack works through seven steps:
 \item \textbf{Attack Model Training:} Train binary classifier on shadow model outputs with known membership labels
 \item \textbf{Attack Execution:} Apply trained attack model to target model outputs
 \item \textbf{Performance Evaluation:} Calculate accuracy, AUROC, precision, recall, and F1 scores
-\end{enumerate} 
+\end{enumerate}
 
 \section{Implementation Details}
 \subsection{Datasets}
@@ -113,22 +113,48 @@ This study employs two real-world social network datasets, each with unique feat
 Each dataset is prepared into 256 subgraphs containing 120 nodes with minimal overlap between subgraphs, stored as pickle files containing (pandas.DataFrame, networkx.Graph) pairs. The binary classification task matches the original MIA framework requirements.
 
 \subsection{Data Integration Pipeline}
-The \texttt{bridge.py} module handles data format conversion, changing pickle-stored subgraphs into PyTorch Geometric Data objects. This conversion keeps graph structure while making sure it works with GNN implementations. The module uses lazy loading to optimize memory usage for large experiments.
+The \texttt{bridge.py} module\footnote{\url{https://gitlab.rhrk.uni-kl.de/div26fuz/uni-project-dec/-/blob/main/rebMIGraph/bridge.py\#L28-50}} handles data format conversion, changing pickle-stored subgraphs into PyTorch Geometric Data objects. Key implementation:
+\begin{verbatim}
+def convert_to_pyg(self, df, graph):
+"""Convert (DataFrame, Graph) tuple to torch_geometric.Data"""
+# Convert networkx to torch_geometric
+data = from_networkx(graph)
+
+# Add node features from DataFrame
+if 'x' not in data:
+    # Use all numeric columns except target as features
+    feature_cols = [col for col in df.columns if col not in ['affiliate', 'gender'] and df[col].dtype in ['int64', 'float64']]
+    data.x = torch.tensor(df[feature_cols].values, dtype=torch.float)
+
+# Add target labels
+if 'affiliate' in df.columns:  # Twitch dataset
+    data.y = torch.tensor(df['affiliate'].values, dtype=torch.long)
+elif 'gender' in df.columns:  # Event dataset
+    # Convert string gender to numeric
+    if df['gender'].dtype.name == 'category' or df['gender'].dtype == object:
+        gender_map = {'male': 0, 'female': 1}
+        data.y = torch.tensor(df['gender'].map(gender_map).values, dtype=torch.long)
+    else:
+        data.y = torch.tensor(df['gender'].values, dtype=torch.long)
+return data
+\end{verbatim}
 
 \subsection{Feature Engineering}
-The \texttt{rebmi\_adapter.py} module implements better feature extraction beyond raw node attributes:
+The \texttt{rebmi\_adapter.py} module\footnote{\url{https://gitlab.rhrk.uni-kl.de/div26fuz/uni-project-dec/-/blob/main/rebMIGraph/rebmi_adapter.py\#L159-290}} implements advanced feature extraction to enhance attack performance:
 
 \begin{itemize}
-\item \textbf{Structural Features:} Degree centrality, clustering coefficient, betweenness centrality
-\item \textbf{Spectral Features:} Eigenvalue-based graph properties, Laplacian eigenmaps
-\item \textbf{Neighborhood Features:} Aggregated statistics from k-hop neighborhoods
-\item \textbf{Temporal Features:} For time-stamped attributes in Twitch dataset
+\item \textbf{Degree Features:} In/out/total degrees plus normalized variants capture connectivity patterns that differ between training and test nodes due to overfitting
+\item \textbf{Local Structure:} Clustering coefficients and triangle counts quantify neighborhood density, exploiting memorized local patterns
+\item \textbf{Ego-network:} Average neighbor degrees reveal second-order connectivity patterns the model memorizes during training
+\item \textbf{Structural Roles:} Hub/leaf/isolated node indicators exploit position-specific model behaviors
+\item \textbf{Feature-Graph Interaction:} Degree-weighted features and connectivity-scaled variance amplify membership signals
+\item \textbf{Distance Metrics:} Proximity to high-degree nodes provides positional information that distinguishes members from non-members
 \end{itemize}
 
-Feature standardization uses z-score normalization with clipping to handle outliers, important for different types of graph data.
+These features transform raw attributes into a rich representation where structural and behavioral patterns expose membership through model overfitting characteristics.
 
 \subsection{Attack Model Enhancement}
-The improved attack model architecture includes several improvements:
+The improved attack model architecture\footnote{Attack model in TSTS.py: \url{https://gitlab.rhrk.uni-kl.de/div26fuz/uni-project-dec/-/blob/main/rebMIGraph/TSTS.py\#L1725-1811}} includes several improvements:
 
 \begin{itemize}
 \item \textbf{Multi-layer Perceptron:} Three hidden layers with [128, 64, 32] neurons
@@ -145,7 +171,8 @@ Extensive experiments were conducted to evaluate attack performance across diffe
 \textbf{Hardware:} MacBook Air M3 with 16GB system memory\\
 \textbf{Software:} PyTorch 1.13, PyTorch Geometric 2.2, Python 3.11\\
 \textbf{Training:} 300 epochs for target/shadow models, no early stopping to maximize overfitting\\
-\textbf{Metrics:} Attack accuracy, AUROC, precision, recall, F1-score
+\textbf{Metrics:} Attack accuracy, AUROC, precision, recall, F1-score\\
+\textbf{Code:} Full experimental pipeline at \url{https://gitlab.rhrk.uni-kl.de/div26fuz/uni-project-dec/-/tree/main/rebMIGraph}
 
 \subsection{Attack Performance}
 Results show different vulnerability levels across GNN architectures:
