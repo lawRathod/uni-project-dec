@@ -26,11 +26,12 @@
 % Define title and author
 \title{Membership Inference Attacks on Graph Neural Networks Using Synthetic Data\footnote{Code repository: \url{https://gitlab.rhrk.uni-kl.de/div26fuz/uni-project-dec}}}
 
-\author{Prateek Rathod\\
-Department of Computer Science\\
-Master's Program in Computer Science}
+\author{Prateek Rathod \\
+Master’s Student, Computer Science \\
+RPTU Kaiserslautern–Landau, Germany \\
+\texttt{div26fuz@rptu.de}}
 
-\date{\today}
+\date{}
 \begin{document}
 
 \maketitle
@@ -174,13 +175,16 @@ elif 'gender' in df.columns:  # Event dataset
 return data
 \end{verbatim}
 
-\subsection{Feature Engineering}
+\subsection{Feature Engineering and Normalization}
 The \texttt{rebmi\_adapter.py} module\footnote{\url{https://gitlab.rhrk.uni-kl.de/div26fuz/uni-project-dec/-/blob/main/rebMIGraph/rebmi_adapter.py\#L159-290}} implements advanced feature extraction including degree features (in/out/total degrees and normalized variants), local structure metrics (clustering coefficients and triangle counts), ego-network properties (average neighbor degrees), structural role indicators (hub/leaf/isolated nodes), feature-graph interactions (degree-weighted features and connectivity-scaled variance), and distance metrics (proximity to high-degree nodes) \cite{olatunji2021membershipinferenceattackgraph}. These features capture connectivity patterns that differ between training and test nodes due to overfitting.
 
-These features transform raw attributes into representations that expose membership patterns through model overfitting.
+Feature normalization\footnote{\url{https://gitlab.rhrk.uni-kl.de/div26fuz/uni-project-dec/-/blob/main/rebMIGraph/rebmi_adapter.py\#L312-352}} applies global standardization across all data splits to ensure consistent scaling. The method computes mean and standard deviation statistics from the combined feature set (target train/test and shadow train/test), then applies z-score normalization $(x - \mu) / \sigma$ to all splits using the same global statistics.
 
 \subsection{Attack Model Enhancement}
 The improved attack model\footnote{Attack model in TSTS.py: \url{https://gitlab.rhrk.uni-kl.de/div26fuz/uni-project-dec/-/blob/main/rebMIGraph/TSTS.py\#L1725-1811}} implements modern deep learning techniques \cite{he2015delving} through a deeper 5-layer architecture (256→128→64→32→2 neurons) that significantly outperforms the original 2-layer classifier. Key improvements include batch normalization for training stability, adaptive dropout (0.3 early, 0.21 later layers) to prevent overfitting, Kaiming initialization for optimized weight starting values, and residual connections for gradient flow. These techniques work together, batch normalization enables deeper networks, dropout prevents noise memorization, and proper initialization ensures effective training convergence, resulting in 15-20\% improved attack accuracy on challenging datasets where the original model achieved near-random performance.
+
+\subsection{Attack Model Input Features}
+The attack operates in a standard black-box setting using only the target model's softmax outputs. For datasets with $C$ classes, the attack model receives a $C$-dimensional vector of class confidence scores. The attack model does not use raw logits, predicted/true labels, model parameters, or graph structure, only the probability distribution from model predictions.
 
 \section{Results and Experimentation}
 \label{results}
@@ -189,7 +193,7 @@ Experiments evaluate membership inference vulnerability across GNN architectures
 \subsection{Experimental Setup}
 \textbf{Hardware:} MacBook Air M3 with 16GB RAM\\
 \textbf{Software:} PyTorch 1.13, PyTorch Geometric 2.2\\
-\textbf{Training:} 300 epochs (30 for GraphSAGE), no early stopping. Each experiment run 5~times\footnote{Data metrics collected for baseline Cora and Citeseer datasets, along with train split used for shadow model is from 1~run} and the result uses mean of all runs to report accuracy.\\
+\textbf{Training:} 300 epochs (30 for GraphSAGE to speed up training), no early stopping. Each experiment run 5~times\footnote{Data metrics collected for baseline Cora and Citeseer datasets, along with train split used for shadow model is from 1~run} and the result uses mean of all runs to report accuracy.\\
 \textbf{Datasets:} Twitch and Event datasets, with uniform random sampling. Using 30\% from each data split (train/non-train/synthetic) for faster experimentation.\\
 \textbf{Metrics:} Attack accuracy, AUROC, precision, recall\\
 \textbf{Code:} \url{https://gitlab.rhrk.uni-kl.de/div26fuz/uni-project-dec/-/tree/main/rebMIGraph} \\
@@ -222,16 +226,16 @@ SGC emerges as the most vulnerable architecture, particularly on the Event datas
 Every model struggles with Twitch data, barely exceeding 52\% accuracy. Yet on Event data, there are dramatic differences, SGC jumps to nearly 65\% while GCN remains at baseline. GAT shows particularly unstable behavior on Event data, with error bars stretching from 45\% to 54\%, suggesting that its attention mechanism sometimes finds exploitable patterns and sometimes doesn't. GraphSAGE sits in the middle with steady 50-51\% accuracy, showing that its neighborhood sampling creates small but consistent privacy leaks.
 
 \subsection{Synthetic Data Effectiveness}
-The core contribution of this work, using synthetic graphs for shadow model training, shows measurable but reduced effectiveness compared to traditional approaches. Figure \ref{fig:synthetic-comparison} is results from experiment where shadow model was trained on same data as the target model (real data) to isolate the effect of synthetic vs real shadow training data.
+The core contribution of this work, using synthetic graphs for shadow model training, shows measurable but reduced effectiveness compared to traditional approaches. Figure \ref{fig:synthetic-comparison} shows results from an upper bound sanity check experiment where the shadow model was trained on the same data as the target model (real data) to isolate the effect of synthetic vs real shadow training data and establish the maximum possible attack performance.
 
 \begin{figure}[H]
 \centering
 \includegraphics[width=\textwidth]{../Results/visualizations/synthetic_vs_real_comparison.png}
-\caption{Synthetic vs real shadow data (using target train set also for shadow model) comparison. Event dataset shows consistent degradation (10-15\% drop) when using synthetic data, while Twitch shows minimal difference due to baseline resistance.}
+\caption{Synthetic vs real shadow data comparison. Real shadow uses target training data as upper bound sanity check. Event dataset shows consistent degradation (10-15\% drop) when using synthetic data, while Twitch shows minimal difference due to baseline resistance.}
 \label{fig:synthetic-comparison}
 \end{figure}
 
-Comparing synthetic and real data for shadow model reveals the performance implications of using synthetic data for training. On Event data, there is a clear performance drop when switching from real to synthetic shadow data, SGC drops from 67\% to 65\% accuracy, while GCN falls more dramatically from 61\% to just under 50\%. This 10--15\% degradation indicates that synthetic graphs capture some patterns necessary for successful attacks. However, the results differ with Twitch data, where both approaches perform equally poorly at around 48--52\% accuracy. Twitch's resistance appears unrelated to data quality but reflects something fundamental that prevents models from learning exploitable patterns. Synthetic data maintains roughly 75--80\% of the attack effectiveness on vulnerable datasets, offering a viable alternative when real training data is unavailable.
+Comparing synthetic and real data for shadow model reveals the performance implications of using synthetic data for training. The real shadow data serves as an upper bound sanity check showing maximum achievable attack performance when the shadow model has access to the same data as the target model. On Event data, there is a clear performance drop when switching from this upper bound to synthetic shadow data, SGC drops from 67\% to 65\% accuracy, while GCN falls more dramatically from 61\% to just under 50\%. This 10--15\% degradation indicates that synthetic graphs capture some patterns necessary for successful attacks. However, the results differ with Twitch data, where both approaches perform equally poorly at around 48--52\% accuracy. Twitch's resistance appears unrelated to data quality but reflects something fundamental that prevents models from learning exploitable patterns. Synthetic data maintains roughly 75--80\% of the attack effectiveness on vulnerable datasets, offering a viable alternative when real training data is unavailable.
 
 \subsection{Dataset-Specific Analysis}
 
@@ -249,7 +253,7 @@ In contrast to Twitch, the Event dataset proves highly vulnerable to membership 
 
 \begin{table}[H]
 \centering
-\caption{Attack accuracy comparison across experiments (mean ± std over 5 runs). Synthetic shadow is shadow model trained on synthetic data, real shadow uses target train data for shadow model. Standard datasets (Cora, CiteSeer) validate pipeline correctness.}
+\caption{Attack accuracy comparison across experiments (mean ± std over 5 runs). Synthetic shadow is shadow model trained on synthetic data, real shadow uses target training data as upper bound sanity check. Standard datasets (Cora, CiteSeer) validate pipeline correctness.}
 \label{tab:performance}
 \begin{tabular}{|l|l|c|c|c|}
 \hline
