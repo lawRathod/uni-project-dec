@@ -24,7 +24,7 @@
 \geometry{a4paper, margin=0.8in} % Example margin settings
 
 % Define title and author
-\title{Membership Inference Attacks on Graph Neural Networks Using Synthetic Data: A Privacy Vulnerability Analysis\footnote{Code repository: \url{https://gitlab.rhrk.uni-kl.de/div26fuz/uni-project-dec}}}
+\title{Membership Inference Attacks on Graph Neural Networks Using Synthetic Data\footnote{Code repository: \url{https://gitlab.rhrk.uni-kl.de/div26fuz/uni-project-dec}}}
 
 \author{Prateek Rathod\\
 Department of Computer Science\\
@@ -35,20 +35,12 @@ Master's Program in Computer Science}
 
 \maketitle
 
-\begin{abstract}
-Membership Inference Attacks (MIAs) create privacy risks for machine learning models by determining if specific data points were used during training. This project studies an attack against Graph Neural Networks (GNNs) that uses synthetic graph data, removing the attacker's need to access real training data. This work adapts existing MIA methods to work with synthetic graphs created through the DLGrapher project\cite{dlgrapher2022}. The study evaluates attack success on four GNN types: Graph Convolutional Networks (GCN), Graph Attention Networks (GAT), GraphSAGE, and Simple Graph Convolution (SGC). 
-
-The experiments use real-world data from Twitch and Event platforms. The results show that synthetic data can effectively support membership inference attacks, though it performs worse than using real data for shadow model training. This work introduces the TSTS (Train on Subgraph, Test on Subgraph) method to handle computational limits while keeping attacks working. 
-
-These findings reveal important privacy problems in GNN deployment and emphasize the need for privacy protection beyond just limiting data access. This work helps understand the trade-off between privacy and utility in graph learning systems, providing insights for building strong defenses against membership inference attacks.
-\end{abstract}
-
 \section{Introduction}
-Membership Inference Attacks (MIAs) are a serious privacy problem in machine learning systems. They allow attackers to determine if specific data points were used during model training \cite{shokri2017membership}. This creates significant risks in areas such as healthcare, finance, and social networks, where training data often contains personal information. Traditional MIA methods require access to real training data, but this project examines a new type of attack that uses synthetic graph data instead.
+Membership Inference Attacks (MIAs) pose serious privacy risks by determining whether specific data points were used in model training \cite{shokri2017membership}. Traditional attacks require access to real training data, but this work examines attacks using synthetic graph data instead.
 
-Graph Neural Networks (GNNs) are powerful tools for learning from graph-structured data and are widely used in social network analysis, recommendation systems, and biological networks \cite{kipf2017semi, velickovic2018graph, hamilton2017inductive}. However, limited research exists on their vulnerability to membership inference attacks \cite{he2021membership}, particularly when attackers cannot access the original data. This project addresses this gap by developing and evaluating MIA methods that use synthetic graph data, specifically using synthetic graph structures provided by the DLGrapher project \cite{dlgrapher2022} that resemble real-world data.
+Graph Neural Networks (GNNs) are widely used in social networks, recommendation systems, and biological networks \cite{kipf2017semi, velickovic2018graph, hamilton2017inductive}, yet limited research exists on their MIA vulnerability \cite{he2021membership} when attackers lack original data access. This study develops MIA methods using synthetic graph structures from the DLGrapher project \cite{dlgrapher2022}.
 
-This work adapts existing MIA methods to work with synthetic graph data and evaluates multiple GNN architectures including Graph Convolutional Networks (GCN), Graph Attention Networks (GAT), GraphSAGE, and Simple Graph Convolution (SGC). The study develops enhanced feature engineering methods and conducts experiments using real-world data from Twitch and Event platforms. The results demonstrate that synthetic data can replace real training samples in shadow model training, achieving attack success rates similar to traditional methods while requiring much less attacker knowledge.
+Experiments across four GNN architectures (GCN, GAT, GraphSAGE, SGC) on Twitch and Event datasets show that attacks can succeed in some cases using synthetic data, though synthetic data results in less privacy leakage compared to real data while requiring minimal attacker knowledge.
 
 \section{Background}
 \subsection{Membership Inference Attacks}
@@ -78,9 +70,9 @@ Four GNN architectures are evaluated, each with different approaches to combinin
 Each architecture\footnote{GNN implementations in TSTS.py: \url{https://gitlab.rhrk.uni-kl.de/div26fuz/uni-project-dec/-/blob/main/rebMIGraph/TSTS.py\#L317-361}} represents different trade-offs between model complexity and efficiency. These design choices influence both model performance and vulnerability to privacy attacks.
 
 \section{Methodology}
-This project introduces a novel approach to membership inference attacks by using pre-generated synthetic graph data from the DLGrapher project, eliminating the attacker's need for real training data access. The proposed method differs from traditional MIA approaches through its unique data handling and attack process.
+This project introduces a novel approach to membership inference attacks by using pre-generated synthetic graph data from the DLGrapher project\cite{lan2024dlgrapher}, eliminating the attacker's need for real training data access. The proposed method differs from traditional MIA approaches through its data handling and attack process.
 
-\subsection{Attack Architecture}
+\subsection{Attack Architecture and Pipeline}
 The attack framework maintains the three-model structure while incorporating pre-existing synthetic data as a key component. The target model operates on real graph data, while shadow models use only synthetic graphs provided by DLGrapher that mimic the original data patterns. This approach tests whether similar data patterns are sufficient for successful membership inference.
 
 \begin{figure}[H]
@@ -138,15 +130,12 @@ The attack framework maintains the three-model structure while incorporating pre
     \draw[thick, dotted] ($(attack-train.north west)+(-0.5,0.8)$) rectangle ($(result.south east)+(0.5,-0.3)$);
     \node[label, font=\footnotesize\bfseries] at ($(attack-train.north west)+(1.5,1.1)$) {Attack Phase};
 \end{tikzpicture}
-\caption{Membership inference attack architecture showing data flow. The target model trains on real subgraphs while the shadow model uses synthetic data from DLGrapher. Both models produce confidence scores that feed into the attack model—shadow outputs with known membership labels for training, target outputs for inference.}
+\caption{Membership inference attack architecture showing data flow. The target model trains on real subgraphs while the shadow model uses synthetic data from DLGrapher. Both models produce confidence scores that feed into the attack model, shadow outputs with known membership labels for training, target outputs for inference.}
 \label{fig:attack-architecture}
 \end{figure}
 
 \subsection{Data Pipeline}
-To handle computational limits of synthetic graph generation, each dataset is partitioned into three parts: training subgraphs for target model training, non-training subgraphs from the same data pattern for testing, and synthetic subgraphs provided by the DLGrapher project. Each part contains 256 subgraphs with 120 nodes, ensuring little overlap between subgraphs. A custom data loader\footnote{\url{https://gitlab.rhrk.uni-kl.de/div26fuz/uni-project-dec/-/blob/main/rebMIGraph/bridge.py}} handles binary pickle files containing (DataFrame, NetworkX Graph) pairs, converting them to PyTorch Geometric Data objects. The adapter module implements the TSTS (Train on Subgraph, Test on Subgraph) method\footnote{\url{https://gitlab.rhrk.uni-kl.de/div26fuz/uni-project-dec/-/blob/main/rebMIGraph/rebmi_adapter.py}}, managing data splits and ensuring proper separation between target and shadow model datasets.
-
-\subsection{Attack Execution Pipeline}
-The attack implementation\footnote{Main attack code: \url{https://gitlab.rhrk.uni-kl.de/div26fuz/uni-project-dec/-/blob/main/rebMIGraph/TSTS.py}} loads graph data from pickle files and trains the target GNN on real training subgraphs while training shadow models on synthetic subgraphs. After extracting graph features, a binary classifier trains on shadow model outputs with known membership labels, then applies to target model outputs. Performance evaluation uses accuracy, AUROC, precision, recall, and F1 scores.
+To handle computational limits of synthetic graph generation, this project uses TSTS (Train on Subgraph, Test on Subgraph) setting from the base paper \cite{olatunji2021membershipinferenceattackgraph}. Each dataset (Twitch/Event) is partitioned into three parts: training subgraphs for target model training, non-training subgraphs from the same data pattern for testing, and synthetic subgraphs generated throug the DLGrapher project\cite{dlgrapher2022}. Each part contains 256 subgraphs with 120 nodes, ensuring little overlap between subgraphs. A custom data loader\footnote{\url{https://gitlab.rhrk.uni-kl.de/div26fuz/uni-project-dec/-/blob/main/rebMIGraph/bridge.py}} handles binary pickle files containing (DataFrame, NetworkX Graph) pairs, converting them to PyTorch Geometric Data objects. The adapter module implements the TSTS method\footnote{\url{https://gitlab.rhrk.uni-kl.de/div26fuz/uni-project-dec/-/blob/main/rebMIGraph/rebmi_adapter.py}}, managing data splits and ensuring proper separation between target and shadow model datasets.
 
 \section{Implementation Details}
 \subsection{Datasets}
@@ -154,12 +143,12 @@ Two real-world social network datasets are used, each presenting unique challeng
 
 \textbf{Twitch Dataset:} Comes from the Twitch streaming platform, containing user interaction graphs with features including \texttt{views}, \texttt{mature}, \texttt{life\_time}, \texttt{created\_at}, \texttt{updated\_at}, \texttt{dead\_account}, \texttt{language}, and \texttt{affiliate} (target variable). The dataset captures social dynamics and content use patterns.
 
-\textbf{Event Dataset:} Comes from event-based social platforms, featuring user attributes such as \texttt{locale}, \texttt{birthyear}, \texttt{gender} (target variable), \texttt{joinedAt}, and \texttt{timezone}. This dataset represents demographic-based social connections.
+\textbf{Event Dataset:} Comes from event-based social platforms, featuring user attributes such as \texttt{locale}, \texttt{birthyear}, \texttt{gender} (target variable), \texttt{joinedAt}, and \texttt{timezone}. This dataset represents demographic based social connections.
 
 Each dataset is prepared into 256 subgraphs containing 120 nodes with minimal overlap between subgraphs, stored as pickle files containing (pandas.DataFrame, networkx.Graph) pairs. The binary classification task matches the original MIA framework requirements.
 
 \subsection{Data Integration Pipeline}
-The \texttt{bridge.py} module\footnote{\url{https://gitlab.rhrk.uni-kl.de/div26fuz/uni-project-dec/-/blob/main/rebMIGraph/bridge.py\#L28-50}} handles data format conversion, changing pickle-stored subgraphs into PyTorch Geometric Data objects. The implementation:
+The \texttt{bridge.py} module\footnote{\url{https://gitlab.rhrk.uni-kl.de/div26fuz/uni-project-dec/-/blob/main/rebMIGraph/bridge.py\#L28-50}} handles data format conversion, changing pickle binary files into PyTorch Geometric Data objects. The implementation:
 \begin{verbatim}
 def convert_to_pyg(self, df, graph):
 """Convert (DataFrame, Graph) tuple to torch_geometric.Data"""
@@ -186,12 +175,12 @@ return data
 \end{verbatim}
 
 \subsection{Feature Engineering}
-The \texttt{rebmi\_adapter.py} module\footnote{\url{https://gitlab.rhrk.uni-kl.de/div26fuz/uni-project-dec/-/blob/main/rebMIGraph/rebmi_adapter.py\#L159-290}} implements advanced feature extraction including degree features (in/out/total degrees and normalized variants), local structure metrics (clustering coefficients and triangle counts), ego-network properties (average neighbor degrees), structural role indicators (hub/leaf/isolated nodes), feature-graph interactions (degree-weighted features and connectivity-scaled variance), and distance metrics (proximity to high-degree nodes). These features capture connectivity patterns that differ between training and test nodes due to overfitting.
+The \texttt{rebmi\_adapter.py} module\footnote{\url{https://gitlab.rhrk.uni-kl.de/div26fuz/uni-project-dec/-/blob/main/rebMIGraph/rebmi_adapter.py\#L159-290}} implements advanced feature extraction including degree features (in/out/total degrees and normalized variants), local structure metrics (clustering coefficients and triangle counts), ego-network properties (average neighbor degrees), structural role indicators (hub/leaf/isolated nodes), feature-graph interactions (degree-weighted features and connectivity-scaled variance), and distance metrics (proximity to high-degree nodes) \cite{he2021membership, olatunji2021membershipinferenceattackgraph}. These features capture connectivity patterns that differ between training and test nodes due to overfitting.
 
 These features transform raw attributes into representations that expose membership patterns through model overfitting.
 
 \subsection{Attack Model Enhancement}
-The improved attack model\footnote{Attack model in TSTS.py: \url{https://gitlab.rhrk.uni-kl.de/div26fuz/uni-project-dec/-/blob/main/rebMIGraph/TSTS.py\#L1725-1811}} implements modern deep learning techniques \cite{he2015delving} through a deeper 5-layer architecture (256→128→64→32→2 neurons) that significantly outperforms the original 2-layer classifier. Key improvements include batch normalization for training stability, adaptive dropout (0.3 early, 0.21 later layers) to prevent overfitting, Kaiming initialization for optimized weight starting values, and residual connections for gradient flow. These techniques work together—batch normalization enables deeper networks, dropout prevents noise memorization, and proper initialization ensures effective training convergence—resulting in 15-20\% improved attack accuracy on challenging datasets where the original model achieved near-random performance.
+The improved attack model\footnote{Attack model in TSTS.py: \url{https://gitlab.rhrk.uni-kl.de/div26fuz/uni-project-dec/-/blob/main/rebMIGraph/TSTS.py\#L1725-1811}} implements modern deep learning techniques \cite{he2015delving} through a deeper 5-layer architecture (256→128→64→32→2 neurons) that significantly outperforms the original 2-layer classifier. Key improvements include batch normalization for training stability, adaptive dropout (0.3 early, 0.21 later layers) to prevent overfitting, Kaiming initialization for optimized weight starting values, and residual connections for gradient flow. These techniques work together, batch normalization enables deeper networks, dropout prevents noise memorization, and proper initialization ensures effective training convergence, resulting in 15-20\% improved attack accuracy on challenging datasets where the original model achieved near-random performance.
 
 \section{Results and Experimentation}
 \label{results}
@@ -200,12 +189,14 @@ Experiments evaluate membership inference vulnerability across GNN architectures
 \subsection{Experimental Setup}
 \textbf{Hardware:} MacBook Air M3 with 16GB RAM\\
 \textbf{Software:} PyTorch 1.13, PyTorch Geometric 2.2\\
-\textbf{Training:} 300 epochs (30 for GraphSAGE), no early stopping. Each experiment run 5~times\footnote{Data metrics collected for baseline Cora and Citeseer datasets, along with train split used for shadow model is from 1~run} and the result uses mean of all runs to report accuracy\\
+\textbf{Training:} 300 epochs (30 for GraphSAGE), no early stopping. Each experiment run 5~times\footnote{Data metrics collected for baseline Cora and Citeseer datasets, along with train split used for shadow model is from 1~run} and the result uses mean of all runs to report accuracy.\\
+\textbf{Datasets:} Twitch and Event datasets, with uniform random sampling. Using 30\% from each data split (train/non-train/synthetic) for faster experimentation.\\
 \textbf{Metrics:} Attack accuracy, AUROC, precision, recall\\
-\textbf{Code:} \url{https://gitlab.rhrk.uni-kl.de/div26fuz/uni-project-dec/-/tree/main/rebMIGraph}
+\textbf{Code:} \url{https://gitlab.rhrk.uni-kl.de/div26fuz/uni-project-dec/-/tree/main/rebMIGraph} \\
+\textbf{Raw Results:} \url{https://gitlab.rhrk.uni-kl.de/div26fuz/uni-project-dec/-/tree/main/Results}
 
 \subsection{Validation on Standard Benchmarks}
-Validation experiments on well-studied graph datasets confirmed the attack pipeline's correctness.
+Validation experiments on graph datasets used by base paper \cite{olatunji2021membershipinferenceattackgraph} confirmed the attack pipeline's correctness.
 
 \begin{figure}[H]
 \centering
@@ -226,39 +217,39 @@ Figure \ref{fig:attack-performance} shows clear differences in privacy leakage a
 \label{fig:attack-performance}
 \end{figure}
 
-SGC emerges as the most vulnerable architecture, particularly on the Event dataset where it reaches 64.9\% accuracy---well above the 50\% random baseline. SGC's simplified design removes protective layers found in other models, allowing attack models to more easily distinguish training from test data. GCN shows the opposite behavior, maintaining 49.5\% accuracy on both datasets---essentially random performance. This protection comes from GCN's normalization process, which makes it harder to exploit overfitting.
+SGC emerges as the most vulnerable architecture, particularly on the Event dataset where it reaches 64.9\% accuracy, well above the 50\% random baseline. SGC's simplified design removes protective layers found in other models, allowing attack models to more easily distinguish training from test data. GCN shows the opposite behavior, maintaining 49.5\% accuracy on both datasets, essentially random performance. This protection comes from GCN's normalization process, which makes it harder to exploit overfitting.
 
-Every model struggles with Twitch data, barely exceeding 52\% accuracy. Yet on Event data, there are dramatic differences---SGC jumps to nearly 65\% while GCN remains at baseline. GAT shows particularly unstable behavior on Event data, with error bars stretching from 45\% to 54\%, suggesting that its attention mechanism sometimes finds exploitable patterns and sometimes doesn't. GraphSAGE sits in the middle with steady 50-51\% accuracy, showing that its neighborhood sampling creates small but consistent privacy leaks.
+Every model struggles with Twitch data, barely exceeding 52\% accuracy. Yet on Event data, there are dramatic differences, SGC jumps to nearly 65\% while GCN remains at baseline. GAT shows particularly unstable behavior on Event data, with error bars stretching from 45\% to 54\%, suggesting that its attention mechanism sometimes finds exploitable patterns and sometimes doesn't. GraphSAGE sits in the middle with steady 50-51\% accuracy, showing that its neighborhood sampling creates small but consistent privacy leaks.
 
 \subsection{Synthetic Data Effectiveness}
-The core contribution of this work—using synthetic graphs for shadow model training—shows measurable but reduced effectiveness compared to traditional approaches.
+The core contribution of this work, using synthetic graphs for shadow model training, shows measurable but reduced effectiveness compared to traditional approaches. Figure \ref{fig:synthetic-comparison} is results from experiment where shadow model was trained on same data as the target model (real data) to isolate the effect of synthetic vs real shadow training data.
 
 \begin{figure}[H]
 \centering
 \includegraphics[width=\textwidth]{../Results/visualizations/synthetic_vs_real_comparison.png}
-\caption{Synthetic vs real shadow data comparison. Event dataset shows consistent degradation (10-15\% drop) when using synthetic data, while Twitch shows minimal difference due to baseline resistance.}
+\caption{Synthetic vs real shadow data (using target train set also for shadow model) comparison. Event dataset shows consistent degradation (10-15\% drop) when using synthetic data, while Twitch shows minimal difference due to baseline resistance.}
 \label{fig:synthetic-comparison}
 \end{figure}
 
-Comparing synthetic and real shadow data reveals the performance implications of using synthetic data for training. On Event data, there is a clear performance drop when switching from real to synthetic shadow data---SGC drops from 67\% to 65\% accuracy, while GCN falls more dramatically from 61\% to just under 50\%. This 10--15\% degradation indicates that synthetic graphs capture some patterns necessary for successful attacks. However, the results differ with Twitch data, where both approaches perform equally poorly at around 48--52\% accuracy. Twitch's resistance appears unrelated to data quality but reflects something fundamental that prevents models from learning exploitable patterns. Synthetic data maintains roughly 75--80\% of the attack effectiveness on vulnerable datasets, offering a viable alternative when real training data is unavailable.
+Comparing synthetic and real data for shadow model reveals the performance implications of using synthetic data for training. On Event data, there is a clear performance drop when switching from real to synthetic shadow data, SGC drops from 67\% to 65\% accuracy, while GCN falls more dramatically from 61\% to just under 50\%. This 10--15\% degradation indicates that synthetic graphs capture some patterns necessary for successful attacks. However, the results differ with Twitch data, where both approaches perform equally poorly at around 48--52\% accuracy. Twitch's resistance appears unrelated to data quality but reflects something fundamental that prevents models from learning exploitable patterns. Synthetic data maintains roughly 75--80\% of the attack effectiveness on vulnerable datasets, offering a viable alternative when real training data is unavailable.
 
 \subsection{Dataset-Specific Analysis}
 
 \subsubsection{Twitch Dataset}
-The Twitch dataset consistently resists membership inference attacks, achieving only ~49\% accuracy across all models and settings---essentially random guessing. Several factors might explain this resistance, though the phenomenon requires further investigation.
+The Twitch dataset consistently resists membership inference attacks, achieving only ~49\% accuracy across all models and settings, essentially random guessing. Several factors might explain this resistance, though the phenomenon requires further investigation.
 
 Twitch captures streaming behavior rather than static demographics. Unlike the Event dataset where someone's gender or birth year never changes, Twitch features such as view counts and streaming activity fluctuate constantly. This makes it harder for models to memorize specific patterns tied to individual users. Predicting affiliate status might provide too subtle a signal compared to predicting gender from demographic data.
 
-The graph structure also differs significantly between datasets. Twitch follower networks tend to be sparser and more dynamic than social event networks, potentially reducing the neighborhood information that attacks typically exploit. The current approach might not suit behavioral data like Twitch. Different attack strategies, feature engineering approaches, or target variables might be more effective. Consistent failure across all architectures suggests this resistance might be fundamental to the data type, though targeted experiments would help determine whether Twitch data is inherently more private or if the methodology needs adaptation.
+The graph structure also differs significantly between datasets. Twitch follower networks tend to be sparser and more dynamic than social event networks, potentially reducing the neighborhood information that attacks typically exploit. The current approach might not suit data like Twitch. Different attack strategies, feature engineering approaches, or target variables might be more effective. Consistent failure across all architectures suggests this resistance might be fundamental to the data type, though targeted experiments would help determine whether Twitch data is inherently more private or if the methodology needs adaptation.
 
 \subsubsection{Event Dataset}
-In contrast to Twitch, the Event dataset proves highly vulnerable to membership inference attacks, with SGC achieving 64.9\% accuracy. This vulnerability stems from the dataset's demographic nature, where features like birth year, gender, and location remain static over time, making it easier for models to memorize specific user patterns. The prediction target---gender classification---creates clear categorical boundaries that attacks can exploit more easily than Twitch's affiliate status. Additionally, social event networks tend to exhibit strong homophily, meaning similar people connect with each other, which amplifies membership signals through the graph structure. The denser connectivity in these networks also provides more neighborhood information that attacks can leverage, creating multiple pathways for privacy leakage that these attacks successfully exploit.
+In contrast to Twitch, the Event dataset proves highly vulnerable to membership inference attacks, with SGC achieving 64.9\% accuracy. This vulnerability stems from the dataset's demographic nature, where features like birth year, gender, and location remain static over time, making it easier for models to memorize specific user patterns. The prediction target, gender classification, creates clear categorical boundaries that attacks can exploit more easily than Twitch's affiliate status. Additionally, social event networks tend to exhibit strong homophily, meaning similar people connect with each other, which amplifies membership signals through the graph structure. The denser connectivity in these networks also provides more neighborhood information that attacks can leverage, creating multiple pathways for privacy leakage that these attacks successfully exploit.
 
 \subsection{Performance Summary Table}
 
 \begin{table}[H]
 \centering
-\caption{Attack accuracy comparison across experiments (mean ± std over 5 runs)}
+\caption{Attack accuracy comparison across experiments (mean ± std over 5 runs). Synthetic shadow is shadow model trained on synthetic data, real shadow uses target train data for shadow model. Standard datasets (Cora, CiteSeer) validate pipeline correctness.}
 \label{tab:performance}
 \begin{tabular}{|l|l|c|c|c|}
 \hline
@@ -284,13 +275,13 @@ In contrast to Twitch, the Event dataset proves highly vulnerable to membership 
 
 \section{Evaluation and Analysis}
 
-Comparing these results with the seminal paper ``Membership Inference Attack on Graph Neural Networks'' by Olatunji et al.\ reveals both similarities and key differences in attack effectiveness patterns. The original paper demonstrated that GNNs are vulnerable to membership inference attacks even when generalizing well, with structural information being the primary contributing factor rather than just overfitting.
+Comparing these results with the seminal paper ``Membership Inference Attack on Graph Neural Networks'' by Olatunji et al.\cite{olatunji2021membershipinferenceattackgraph} reveals both similarities and key differences in attack effectiveness patterns. The original paper demonstrated that GNNs are vulnerable to membership inference attacks even when generalizing well, with structural information being the primary contributing factor rather than just overfitting.
 
-The experiments align with their finding that GAT shows the highest resistance due to its learnable attention weights, which create a distorted graph representation rather than embedding actual graph structure. These results show significantly lower attack success rates across all architectures. Where Olatunji et al.\ achieved 70--88\% attack accuracy on standard datasets such as Cora and CiteSeer, this synthetic data approach achieves 49--65\% on custom datasets, reflecting the limitation of using synthetic rather than real shadow training data.
+The experiments align with their finding that GAT shows the highest resistance due to its learnable attention weights, which create a distorted graph representation rather than embedding actual graph structure. These results show significantly lower attack success rates across all architectures. Where Olatunji et al.\ achieved 70--88\% attack accuracy on standard datasets such as Cora and CiteSeer, this synthetic data approach achieves 49--65\% on custom datasets, reflecting the limitation of using synthetic rather than real world data for training.
 
-The structural information hypothesis from the original work helps explain these dataset-specific findings. Twitch's behavioral features create dynamic, non-stationary patterns that resist the structural memorization that makes traditional graph datasets vulnerable. Conversely, Event's static demographic features combined with social homophily create the exploitable structural patterns that the original paper identified as the primary vulnerability vector.
+The structural information hypothesis from the original work helps explain these dataset specific findings. Twitch's features create dynamic, non-stationary patterns that resist the structural memorization that makes traditional graph datasets vulnerable. Conversely, Event's static demographic features combined with social homophily create the exploitable structural patterns that the original paper identified as the primary vulnerability vector.
 
-SGC outperforms GCN in vulnerability, mirroring the original paper's observation that simpler aggregation schemes preserve more exploitable structural information. This synthetic data setting shows the effect is dataset-dependent, pronounced on vulnerable datasets like Event while minimal on resistant ones like Twitch.
+SGC outperforms GCN in vulnerability, mirroring the original paper's observation that simpler aggregation schemes preserve more exploitable structural information. This synthetic data setting shows the effect is dataset dependent, pronounced on vulnerable datasets like Event while minimal on resistant ones like Twitch.
 
 \section{Future Work}
 
@@ -303,9 +294,9 @@ This work introduces a novel approach to membership inference attacks on Graph N
 
 The development of the TSTS (Train on Subgraph, Test on Subgraph) methodology addresses computational constraints while enabling practical attacks on large graph datasets. The visualization-driven analysis reveals three critical insights: dataset characteristics dominate architectural differences in determining vulnerability, with behavioral data (Twitch) showing remarkable resistance while demographic data (Event) remains highly vulnerable. Counter-intuitively, simpler architectures (SGC) leak more membership information than complex ones (GCN), challenging conventional wisdom about model sophistication and privacy.
 
-The experimental validation against standard benchmarks (Cora, CiteSeer) confirms this pipeline's correctness while highlighting the unique privacy characteristics of these custom datasets. However, a critical observation emerges from analyzing individual experimental runs: the attack model frequently exhibits severe classification bias, predicting almost exclusively one class (member or non-member) rather than learning balanced decision boundaries. For instance, some GAT runs achieve 97% accuracy on members but only 2.2% on non-members, while others show the reverse pattern (4% vs 96%). This suggests the attack model learns to exploit dataset-specific artifacts rather than genuine membership signals.
+The experimental validation against standard benchmarks (Cora, CiteSeer) confirms this pipeline's correctness while highlighting the unique privacy characteristics of these custom datasets. However, a critical observation emerges from analyzing individual experimental runs: the attack model frequently exhibits severe classification bias, predicting almost exclusively one class (member or non-member) rather than learning balanced decision boundaries. For instance, some GAT runs achieve 97\% accuracy on members but only 2.2\% on non-members, while others show the reverse pattern (4\% vs 96\%). This suggests the attack model learns to exploit dataset-specific artifacts rather than genuine membership signals.
 
-This bias pattern indicates a fundamental limitation in this attack methodology---the model may be overfitting to spurious correlations in the synthetic training data rather than learning robust membership indicators. Twitch's consistent resistance across all attack configurations suggests that temporal behavioral features provide inherent privacy protection, though this requires further investigation to distinguish between dataset properties and methodological limitations.
+This bias pattern indicates a fundamental limitation in this attack methodology, the model may be overfitting to spurious correlations in the synthetic training data rather than learning robust membership indicators. Twitch's consistent resistance across all attack configurations suggests that temporal behavioral features provide inherent privacy protection, though this requires further investigation to distinguish between dataset properties and methodological limitations.
 
 These findings carry important implications for privacy-sensitive GNN deployment. Synthetic data attacks are less effective than traditional approaches but represent a viable threat model requiring minimal adversarial resources. As graph learning expands into healthcare, finance, and social analytics, practitioners must consider both architectural choice and data type in their privacy assessments, with the understanding that demographic data may be fundamentally more vulnerable to inference attacks than behavioral data.
 
