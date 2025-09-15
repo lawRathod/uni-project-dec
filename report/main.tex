@@ -186,6 +186,9 @@ The improved attack model\footnote{Attack model in TSTS.py: \url{https://gitlab.
 \subsection{Attack Model Input Features}
 The attack operates in a standard black-box setting using only the target model's softmax outputs. For datasets with $C$ classes, the attack model receives a $C$-dimensional vector of class confidence scores. The attack model does not use raw logits, predicted/true labels, model parameters, or graph structure, only the probability distribution from model predictions.
 
+\subsection{Attack Model Training and Evaluation}
+The attack model training uses shadow model outputs with known membership labels: shadow training data (labeled as members) and shadow test data (labeled as non-members), split 80/20 with 50 samples reserved for validation. The main evaluation uses target model outputs on target training data (members) and target test data (non-members), creating a balanced binary classification task. This setup ensures the attack model never sees target model outputs during training, providing a realistic evaluation of membership inference capability.
+
 \section{Results and Experimentation}
 \label{results}
 Experiments evaluate membership inference vulnerability across GNN architectures and datasets, revealing privacy patterns through visualization analysis.
@@ -294,7 +297,7 @@ The attack models often predict only one class (member or non-member) instead of
 Also, it's unclear whether Twitch's resistance comes from behavioral data being naturally more private or from problems with the attack method. Future research should test different attack strategies designed for data that changes over time, including methods that look at sequences and dynamic graph analysis.
 
 \section{Conclusion}
-This work introduces a new approach to membership inference attacks on Graph Neural Networks using synthetic graph data for shadow model training, showing that privacy risks exist even when attackers cannot access real training data. Through experiments across four GNN architectures (GCN, GAT, GraphSAGE, SGC) and real world datasets (Twitch, Event), this study achieves attack accuracies of 49--65\%, representing about 75--80\% of the effectiveness achieved when using real data instead of synthetic data.
+This work introduces a new approach to membership inference attacks on Graph Neural Networks using synthetic graph data for shadow model training, showing that privacy risks exist even when attackers cannot access real training data. Through experiments across four GNN architectures (GCN, GAT, GraphSAGE, SGC) and real world datasets (Twitch, Event), this study achieves attack accuracies of 49--65\% when using synthetic data for training shadow model.
 
 The TSTS (Train on Subgraph, Test on Subgraph) method solves memory problems while enabling practical attacks on large graph datasets. The analysis reveals three key insights: dataset type matters more than model architecture for vulnerability, with behavioral data (Twitch) showing strong resistance while demographic data (Event) remains highly vulnerable. Surprisingly, simpler architectures (SGC) leak more membership information than complex ones (GCN), challenging common beliefs about model complexity and privacy.
 
